@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Waddle.Core/Waddle.Core.csproj" />
+  <Project Path="Waddle.Infrastructure/Waddle.Infrastructure.csproj" />
+  <Project Path="Waddle.Tests/Waddle.Tests.csproj" />
+  <Project Path="Waddle.Wpf/Waddle.Wpf.csproj" />
+</Solution>
