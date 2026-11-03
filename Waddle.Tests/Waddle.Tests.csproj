@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Waddle.Core\Waddle.Core.csproj" />
+    <ProjectReference Include="..\Waddle.Infrastructure\Waddle.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
