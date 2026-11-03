@@ -1,0 +1,68 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+# This workflow will build, test, sign and package a WPF or Windows Forms desktop application
+# built on .NET Core.
+# To learn how to migrate your existing application to .NET Core,
+# refer to https://docs.microsoft.com/en-us/dotnet/desktop-wpf/migration/convert-project-from-net-framework
+#
+# This workflow will build, test, and publish a WPF or Windows Forms desktop application built on modern .NET.
+name: .NET Core Desktop
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+
+    runs-on: windows-latest  
+
+    env:
+      Solution_Name: Waddle.slnx
+      Test_Project_Path: Waddle.Tests/Waddle.Tests.csproj
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # Install the .NET workload matching your project dependencies
+    - name: Install .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: |
+          8.0.x
+          10.0.x
+
+    # Restore the application dependencies using standard dotnet CLI
+    - name: Restore the application
+      run: dotnet restore ${{ env.Solution_Name }}
+
+    # Execute all unit tests in the solution
+    - name: Execute unit tests
+      run: dotnet test ${{ env.Test_Project_Path }} --configuration ${{ matrix.configuration }} --no-restore
+
+    # Build the WPF project targeting the current matrix configuration
+    - name: Build the WPF Application
+      run: dotnet build Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --no-restore
+
+    # Publish the output binaries into a clean, flat folder framework structure
+    - name: Publish Binaries
+      run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
+
+    # Upload the zipped binary output so you can download it from the action run history
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Waddle-Wpf-App-${{ matrix.configuration }}
+        path: ./publish_output/${{ matrix.configuration }}
+
