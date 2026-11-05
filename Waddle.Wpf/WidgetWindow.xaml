@@ -1,0 +1,108 @@
+<Window x:Class="Waddle.Wpf.WidgetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Waddle.Wpf"
+        Title="Waddle widget"
+        Width="260"
+        Height="170"
+        MinWidth="180"
+        MinHeight="120"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        WindowStartupLocation="Manual"
+        Background="{StaticResource Surface}"
+        BorderThickness="0"
+        FontFamily="Segoe UI Variable, Segoe UI"
+        Closed="Window_Closed">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title bar: drag to move -->
+        <DockPanel Grid.Row="0"
+                Background="{StaticResource Bg}"
+                MouseLeftButtonDown="TitleBar_MouseDown">
+            <Button DockPanel.Dock="Right"
+                    Content="&#xE711;"
+                    FontFamily="Segoe MDL2 Assets"
+                    ToolTip="Close widget (timer keeps running)"
+                    Style="{StaticResource WaddleButton}"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="10,6"
+                    Click="Close_Click"/>
+            <Button x:Name="SizeButton"
+                    DockPanel.Dock="Right"
+                    Content="&#xE740;"
+                    FontFamily="Segoe MDL2 Assets"
+                    ToolTip="Make bigger"
+                    Style="{StaticResource WaddleButton}"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="10,6"
+                    Click="Size_Click"/>
+            <TextBlock Text="Waddle"
+                    FontWeight="SemiBold"
+                    Foreground="{StaticResource Ink}"
+                       VerticalAlignment="Center"
+                    Margin="12,0,0,0"/>
+        </DockPanel>
+
+        <!-- Timer text scales with the window -->
+        <Viewbox Grid.Row="1"
+                Margin="12,8"
+                Stretch="Uniform">
+            <StackPanel x:Name="SessionPanel">
+                <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=SessionText}"
+                           FontSize="32"
+                        FontWeight="ExtraBold"
+                        Foreground="{StaticResource Ink}"
+                        HorizontalAlignment="Center"/>
+                <TextBlock HorizontalAlignment="Center"
+                        Foreground="{StaticResource Muted}"
+                        FontSize="13">
+                    <Run Text="Today "/>
+                    <Run Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TodayText, Mode=OneWay}"/>
+                </TextBlock>
+            </StackPanel>
+        </Viewbox>
+
+        <!-- Shown instead of the timer when Recalibrate is clicked -->
+        <TextBlock x:Name="CalText"
+                Grid.Row="1"
+                Visibility="Collapsed"
+                Margin="14"
+                TextWrapping="Wrap"
+                   TextAlignment="Center"
+                VerticalAlignment="Center"
+                Foreground="{StaticResource Muted}"
+                   Text="Face calibration will be available once the camera is added."/>
+
+        <Grid x:Name="Controls"
+                Grid.Row="2"
+                Margin="12,0,12,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0"
+                    Padding="8"
+                    Style="{StaticResource WaddleButton}"
+                    Click="Pause_Click"
+                    Content="{Binding Source={x:Static local:TimeTracker.Instance}, Path=PauseButtonText}"/>
+            <Button Grid.Column="2"
+                    Content="Stop"
+                    Padding="8"
+                    Style="{StaticResource PrimaryButton}"
+                    Click="Stop_Click"/>
+        </Grid>
+    </Grid>
+</Window>

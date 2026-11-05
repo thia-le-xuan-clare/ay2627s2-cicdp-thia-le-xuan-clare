@@ -5,21 +5,53 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Waddle.Wpf"
         mc:Ignorable="d"
-        Title="MainWindow"
-        Height="450"
-        Width="800">
-    <Grid>
-        <StackPanel Margin="20"
-                HorizontalAlignment="Left">
-            <Button Content="Scan"
-                    Command="{Binding ScanCommand}"
-                    Width="120"
-                    Height="36"/>
-            <CheckBox Content="Simulate failure"
-                    IsChecked="{Binding SimulateFailure}"
-                    Margin="0,10,0,0"/>
-            <TextBlock Text="{Binding Status}"
-                    Margin="0,12,0,0"/>
-        </StackPanel>
+        Title="Waddle" Width="720" Height="420" MinWidth="520" MinHeight="320"
+        Background="{StaticResource Bg}"
+        FontFamily="Segoe UI Variable, Segoe UI">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="8,0,8,16" LastChildFill="False">
+            <TextBlock Text="Waddle" FontSize="34" FontWeight="ExtraBold"
+                       Foreground="{StaticResource Ink}" DockPanel.Dock="Left"/>
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button Content="Recalibrate face size"
+                        Command="{Binding RecalibrateCommand}" Click="Recalibrate_Click"
+                        Style="{StaticResource WaddleButton}" Margin="0,0,10,0"/>
+                <Button Content="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TimerButtonText}"
+                        Command="{Binding StartTimerCommand}" Click="Start_Click"
+                        Style="{StaticResource PrimaryButton}"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Cumulative time sat up today, shared with the widget -->
+        <Border Grid.Row="1" Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="Sat up today" Style="{StaticResource CardTitle}"/>
+                <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TodayText}"
+                           FontSize="60" FontWeight="ExtraBold" Foreground="{StaticResource Ink}"/>
+                <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=StatusText}"
+                           Foreground="{StaticResource Muted}" Margin="0,8,0,0"/>
+
+                <!-- Only while a session is running and the widget is closed -->
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0"
+                            Visibility="{Binding Source={x:Static local:TimeTracker.Instance}, Path=ShowDashboardControls, Converter={StaticResource BoolToVis}}">
+                    <Button Padding="22,10" Margin="0,0,10,0" Style="{StaticResource WaddleButton}" Click="Pause_Click"
+                            Content="{Binding Source={x:Static local:TimeTracker.Instance}, Path=PauseButtonText}"/>
+                    <Button Content="Stop" Padding="22,10" Style="{StaticResource PrimaryButton}" Click="Stop_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="2" Text="{Binding Status}" Foreground="{StaticResource Muted}" Margin="8,4,8,0"/>
     </Grid>
 </Window>
