@@ -29,6 +29,7 @@ public partial class App : Application
         Services = sc.BuildServiceProvider();
 
         var log = Services.GetRequiredService<ILogService>();
+        TimeTracker.Instance.Log = log;
         log.Info("App started");
         log.Info($"Database ready at {dbPath}");
 
