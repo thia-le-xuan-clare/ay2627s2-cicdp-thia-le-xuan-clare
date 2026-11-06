@@ -12,13 +12,21 @@ public partial class WidgetWindow : Window
 {
     // remember where/how big the widget was last time
     private static double? _left, _top, _width, _height;
+    private static bool? _lastBig;
 
-    private bool _big;
+    private const double MediumW = 300, MediumH = 370, SmallW = 260, SmallH = 180;
+
+    private bool _big;                      // true = camera + timer, false = timer only
+    private WidgetMode _mode = WidgetMode.Session;
 
     public WidgetWindow()
     {
         InitializeComponent();
+
+        _big = _lastBig ?? true;
+        ApplyLayout();
         if (_width is double w && _height is double h) { Width = w; Height = h; }
+        else { Width = _big ? MediumW : SmallW; Height = _big ? MediumH : SmallH; }
 
         if (_left is double l && _top is double t && IsOnAScreen(l, t))
         {
@@ -53,24 +61,50 @@ public partial class WidgetWindow : Window
         l + 60 > SystemParameters.VirtualScreenLeft && l < SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - 60 &&
         t + 30 > SystemParameters.VirtualScreenTop && t < SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - 30;
 
+    // ---------------- mode ----------------
     public void SetMode(WidgetMode mode)
     {
+        _mode = mode;
         bool session = mode == WidgetMode.Session;
         SessionPanel.Visibility = session ? Visibility.Visible : Visibility.Collapsed;
         CalText.Visibility = session ? Visibility.Collapsed : Visibility.Visible;
         Controls.Visibility = session ? Visibility.Visible : Visibility.Collapsed;
+
+        if (session)
+        {
+            CameraMonitor.Instance.Release("calibration");  // the session keeps the camera on if it needs it
+        }
+        else
+        {
+            if (!_big) SetBig(true);                        // calibrating needs the camera visible
+            _ = CameraMonitor.Instance.AcquireAsync("calibration");
+        }
     }
 
-    // small <-> big presets (you can also drag the corner grip to any size)
-    private void Size_Click(object sender, RoutedEventArgs e)
+    // ---------------- layout ----------------
+    private void ApplyLayout()
     {
-        _big = !_big;
-        Width = _big ? 380 : 260;
-        Height = _big ? 240 : 170;
+        CameraRow.Height = _big ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        TimerRow.Height = _big ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
         SizeButton.Content = _big ? "\uE73F" : "\uE740";
         SizeButton.ToolTip = _big ? "Make smaller" : "Make bigger";
     }
 
+    private void SetBig(bool big)
+    {
+        _big = big;
+        ApplyLayout();
+        Width = big ? MediumW : SmallW;
+        Height = big ? MediumH : SmallH;
+    }
+
+    private void Size_Click(object sender, RoutedEventArgs e)
+    {
+        if (_mode == WidgetMode.Calibrate) return;
+        SetBig(!_big);
+    }
+
+    // ---------------- buttons ----------------
     private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
@@ -85,8 +119,15 @@ public partial class WidgetWindow : Window
         Close();
     }
 
+    // "Try again" on the camera reminder
+    private void Retry_Click(object sender, RoutedEventArgs e) =>
+        _ = _mode == WidgetMode.Calibrate
+            ? CameraMonitor.Instance.AcquireAsync("calibration")
+            : CameraMonitor.Instance.RetryAsync();
+
     private void Window_Closed(object? sender, EventArgs e)
     {
-        _left = Left; _top = Top; _width = ActualWidth; _height = ActualHeight;
+        CameraMonitor.Instance.Release("calibration");      // no-op if a session still needs the camera
+        _left = Left; _top = Top; _width = ActualWidth; _height = ActualHeight; _lastBig = _big;
     }
 }
