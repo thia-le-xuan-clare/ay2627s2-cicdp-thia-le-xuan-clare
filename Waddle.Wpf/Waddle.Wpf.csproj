@@ -21,4 +21,10 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+    <ItemGroup>
+     <None Update="haarcascade_frontalface_default.xml">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
+   </ItemGroup>
+
 </Project>

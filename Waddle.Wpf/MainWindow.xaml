@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Waddle.Wpf"
         mc:Ignorable="d"
-        Title="Waddle" Width="720" Height="420" MinWidth="520" MinHeight="320"
+        Title="Waddle" Width="780" Height="540" MinWidth="600" MinHeight="420"
         Background="{StaticResource Bg}"
         FontFamily="Segoe UI Variable, Segoe UI">
 
@@ -15,6 +15,7 @@
 
     <Grid Margin="24">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -33,25 +34,66 @@
             </StackPanel>
         </DockPanel>
 
-        <!-- Cumulative time sat up today, shared with the widget -->
-        <Border Grid.Row="1" Style="{StaticResource Card}">
-            <StackPanel>
-                <TextBlock Text="Sat up today" Style="{StaticResource CardTitle}"/>
-                <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TodayText}"
-                           FontSize="60" FontWeight="ExtraBold" Foreground="{StaticResource Ink}"/>
-                <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=StatusText}"
-                           Foreground="{StaticResource Muted}" Margin="0,8,0,0"/>
-
-                <!-- Only while a session is running and the widget is closed -->
-                <StackPanel Orientation="Horizontal" Margin="0,16,0,0"
-                            Visibility="{Binding Source={x:Static local:TimeTracker.Instance}, Path=ShowDashboardControls, Converter={StaticResource BoolToVis}}">
-                    <Button Padding="22,10" Margin="0,0,10,0" Style="{StaticResource WaddleButton}" Click="Pause_Click"
-                            Content="{Binding Source={x:Static local:TimeTracker.Instance}, Path=PauseButtonText}"/>
-                    <Button Content="Stop" Padding="22,10" Style="{StaticResource PrimaryButton}" Click="Stop_Click"/>
-                </StackPanel>
-            </StackPanel>
+        <!-- Camera reminder: shown when the camera is off / being checked -->
+        <Border Grid.Row="1" Margin="8,0,8,8" Padding="14,10" CornerRadius="12"
+                Background="{StaticResource H1}" BorderBrush="{StaticResource Beak}" BorderThickness="1.5"
+                Visibility="{Binding Source={x:Static local:CameraMonitor.Instance}, Path=HasBanner, Converter={StaticResource BoolToVis}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Try again" Margin="12,0,0,0" Padding="16,6"
+                        Style="{StaticResource WaddleButton}" Click="Retry_Click"
+                        Visibility="{Binding Source={x:Static local:CameraMonitor.Instance}, Path=HasProblem, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="{Binding Source={x:Static local:CameraMonitor.Instance}, Path=Banner}"
+                           TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{StaticResource Ink}"/>
+            </DockPanel>
         </Border>
 
-        <TextBlock Grid.Row="2" Text="{Binding Status}" Foreground="{StaticResource Muted}" Margin="8,4,8,0"/>
+        <!-- Cumulative time sat up today (left) + camera when the widget is closed (right) -->
+        <Border Grid.Row="2" Style="{StaticResource Card}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Sat up today" Style="{StaticResource CardTitle}"/>
+                    <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TodayText}"
+                               FontSize="60" FontWeight="ExtraBold" Foreground="{StaticResource Ink}"/>
+                    <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=StatusText}"
+                               Foreground="{StaticResource Muted}" Margin="0,8,0,0"/>
+
+                    <!-- Only while a session is running and the widget is closed -->
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0"
+                                Visibility="{Binding Source={x:Static local:TimeTracker.Instance}, Path=ShowDashboardControls, Converter={StaticResource BoolToVis}}">
+                        <Button Padding="22,10" Margin="0,0,10,0" Style="{StaticResource WaddleButton}" Click="Pause_Click"
+                                Content="{Binding Source={x:Static local:TimeTracker.Instance}, Path=PauseButtonText}"/>
+                        <Button Content="Stop" Padding="22,10" Style="{StaticResource PrimaryButton}" Click="Stop_Click"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Grid.Column="1" Width="280" Height="210" Margin="24,0,0,0" CornerRadius="12"
+                        Background="#2A2412" ClipToBounds="True" VerticalAlignment="Center"
+                        Visibility="{Binding Source={x:Static local:TimeTracker.Instance}, Path=ShowDashboardControls, Converter={StaticResource BoolToVis}}">
+                    <Grid>
+                        <Image Source="{Binding Source={x:Static local:CameraMonitor.Instance}, Path=Frame}"
+                               Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                            <Image.RenderTransform><ScaleTransform ScaleX="-1"/></Image.RenderTransform>
+                        </Image>
+                        <TextBlock Text="{Binding Source={x:Static local:CameraMonitor.Instance}, Path=OverlayText}"
+                                   Foreground="#CDBB85" TextWrapping="Wrap" TextAlignment="Center" Margin="16"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="{Binding Source={x:Static local:CameraMonitor.Instance}, Path=HasOverlay, Converter={StaticResource BoolToVis}}"/>
+                        <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8" Padding="8,3"
+                                CornerRadius="6" Background="#B0000000"
+                                Visibility="{Binding Source={x:Static local:CameraMonitor.Instance}, Path=HasFrame, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding Source={x:Static local:CameraMonitor.Instance}, Path=FaceText}"
+                                       Foreground="White" FontSize="12"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="3" Text="{Binding Status}" Foreground="{StaticResource Muted}" Margin="8,4,8,0"/>
     </Grid>
 </Window>
