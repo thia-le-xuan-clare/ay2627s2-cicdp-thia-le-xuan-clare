@@ -15,23 +15,29 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Database setup (unchanged)
+        // Database setup
         var dbPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Waddle", "waddle.db");
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-        new DatabaseInitializer(dbPath).Initialize();
+        var db = new DatabaseInitializer(dbPath);   // kept in a variable so the store can use it
+        db.Initialize();
 
         // Dependency injection
         var sc = new ServiceCollection();
+        sc.AddSingleton(db);                                          // NEW
+        sc.AddSingleton<IDailyTimeStore, SqliteDailyTimeStore>();     // NEW
         sc.AddSingleton<ILogService, FileLogService>();
         sc.AddSingleton<MainViewModel>();
         sc.AddSingleton<MainWindow>();
         Services = sc.BuildServiceProvider();
 
         var log = Services.GetRequiredService<ILogService>();
-        TimeTracker.Instance.Log = log;
         log.Info("App started");
         log.Info($"Database ready at {dbPath}");
+
+        // NEW: give the shared timer its logger and its database store
+        TimeTracker.Instance.Log = log;
+        TimeTracker.Instance.Store = Services.GetRequiredService<IDailyTimeStore>();
 
         Services.GetRequiredService<MainWindow>().Show();
     }
