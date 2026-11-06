@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Text.Json;
 using System.Windows.Threading;
 using Waddle.Core;
 
@@ -10,21 +8,26 @@ namespace Waddle.Wpf;
 
 /// <summary>
 /// One shared timer for the whole app. The dashboard and the widget both read from this,
-/// so they can never disagree. Daily totals are saved to %AppData%\Waddle\daily-time.json
-/// and survive restarts. (No WPF types except DispatcherTimer, so it can move to Waddle.Core later.)
+/// so they can never disagree. Daily totals are saved through IDailyTimeStore (SQLite).
 /// </summary>
 public sealed class TimeTracker : INotifyPropertyChanged
 {
-    private static readonly string FilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Waddle", "daily-time.json");
-
     public static TimeTracker Instance { get; } = new();
 
-    private readonly Dictionary<string, double> _daily;                  // "yyyy-MM-dd" -> seconds
+    private readonly Dictionary<DateOnly, double> _cache = new();   // day -> seconds (in memory)
+    private readonly HashSet<DateOnly> _dirty = new();              // days changed since last save
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private DateTime _lastTick;
     private DateTime _lastSave = DateTime.MinValue;
     private TimeSpan _session = TimeSpan.Zero;
+
+    private IDailyTimeStore? _store;
+    /// <summary>Set once at startup (before the timer is used).</summary>
+    public IDailyTimeStore? Store
+    {
+        get => _store;
+        set { _store = value; _cache.Clear(); _dirty.Clear(); Changed(); }
+    }
 
     /// <summary>Set once at startup (TimeTracker.Instance.Log = logService).</summary>
     public ILogService? Log { get; set; }
@@ -45,12 +48,11 @@ public sealed class TimeTracker : INotifyPropertyChanged
 
     private TimeTracker()
     {
-        _daily = Load();
         _timer.Tick += (_, _) => Tick();
     }
 
     // ---------- what the UI binds to ----------
-    public TimeSpan Today => TimeSpan.FromSeconds(_daily.GetValueOrDefault(Key(DateTime.Now)));
+    public TimeSpan Today => TimeSpan.FromSeconds(SecondsFor(DateOnly.FromDateTime(DateTime.Now)));
     public string TodayText => Today.TotalHours >= 1
         ? $"{(int)Today.TotalHours}h {Today.Minutes:00}m"
         : $"{Today.Minutes}m {Today.Seconds:00}s";
@@ -96,6 +98,17 @@ public sealed class TimeTracker : INotifyPropertyChanged
     }
 
     // ---------- internals ----------
+    // Seconds for a day: from memory if we have it, otherwise read once from the database.
+    private double SecondsFor(DateOnly day)
+    {
+        if (_cache.TryGetValue(day, out var seconds)) return seconds;
+        if (_store is null) return 0;                    // not wired yet; don't cache a fake 0
+        try { seconds = _store.GetSeconds(day); }
+        catch (Exception ex) { Log?.Info($"WARNING: could not read daily time: {ex.Message}"); return 0; }
+        _cache[day] = seconds;
+        return seconds;
+    }
+
     private void Tick()
     {
         var now = DateTime.Now;
@@ -106,41 +119,31 @@ public sealed class TimeTracker : INotifyPropertyChanged
         if (!IsRunning || IsPaused || delta > TimeSpan.FromSeconds(5)) { Changed(); return; }
 
         _session += delta;
-        var key = Key(now);
-        _daily[key] = _daily.GetValueOrDefault(key) + delta.TotalSeconds;
+        var day = DateOnly.FromDateTime(now);
+        _cache[day] = SecondsFor(day) + delta.TotalSeconds;
+        _dirty.Add(day);
 
         if (now - _lastSave > TimeSpan.FromSeconds(30)) Save();     // don't lose much if the app crashes
         Changed();
     }
 
-    private static string Key(DateTime d) => d.ToString("yyyy-MM-dd");
-
     private void Save()
     {
         _lastSave = DateTime.Now;
-        try
+        if (_store is null) return;
+        foreach (var day in new List<DateOnly>(_dirty))
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            var tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(_daily));
-            File.Move(tmp, FilePath, overwrite: true);
+            try
+            {
+                _store.SetSeconds(day, (int)Math.Floor(_cache[day]));
+                _dirty.Remove(day);
+            }
+            catch (Exception ex)
+            {
+                // best-effort: keep the timer running, try again next save
+                Log?.Info($"WARNING: could not save daily time for {day:yyyy-MM-dd}: {ex.Message}");
+            }
         }
-        catch (Exception ex)
-        {
-            // best-effort: keep the timer running, but leave a trace
-            Log?.Info($"WARNING: could not save daily time to {FilePath}: {ex.Message}");
-        }
-    }
-
-    private static Dictionary<string, double> Load()
-    {
-        try
-        {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<Dictionary<string, double>>(File.ReadAllText(FilePath)) ?? new();
-        }
-        catch { }
-        return new();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
