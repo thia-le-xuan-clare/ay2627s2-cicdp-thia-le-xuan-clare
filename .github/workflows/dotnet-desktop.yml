@@ -13,9 +13,14 @@ name: .NET Core Desktop
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
 
 jobs:
   build:
@@ -23,46 +28,72 @@ jobs:
       matrix:
         configuration: [Debug, Release]
 
-    runs-on: windows-latest  
+    runs-on: windows-latest
 
     env:
       Solution_Name: Waddle.slnx
       Test_Project_Path: Waddle.Tests/Waddle.Tests.csproj
+      UI_Test_Project_Path: Waddle.UITests/Waddle.UITests.csproj
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    # Install the .NET workload matching your project dependencies
-    - name: Install .NET SDK
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-    # Restore the application dependencies using standard dotnet CLI
-    - name: Restore the application
-      run: dotnet restore ${{ env.Solution_Name }}
+      - name: Restore the application
+        run: dotnet restore ${{ env.Solution_Name }}
 
-    # Execute all unit tests in the solution
-    - name: Execute unit tests
-      run: dotnet test ${{ env.Test_Project_Path }} --configuration ${{ matrix.configuration }} --no-restore
+      - name: Build solution
+        run: dotnet build ${{ env.Solution_Name }} --configuration ${{ matrix.configuration }} --no-restore
 
-    # Build the WPF project targeting the current matrix configuration
-    - name: Build the WPF Application
-      run: dotnet build Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --no-restore
+      - name: Execute unit and integration tests
+        run: >
+          dotnet test ${{ env.Test_Project_Path }}
+          --configuration ${{ matrix.configuration }}
+          --no-build
+          --logger "trx;LogFileName=test-results-${{ matrix.configuration }}.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
 
-    # Publish the output binaries into a clean, flat folder framework structure
-    - name: Publish Binaries
-      run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
+      - name: Execute WPF UI automation tests
+        if: matrix.configuration == 'Release'
+        run: >
+          dotnet test ${{ env.UI_Test_Project_Path }}
+          --configuration ${{ matrix.configuration }}
+          --no-build
+          --logger "trx;LogFileName=ui-test-results.trx"
+          --results-directory ./TestResults
 
-    # Upload the zipped binary output so you can download it from the action run history
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: Waddle-Wpf-App-${{ matrix.configuration }}
-        path: ./publish_output/${{ matrix.configuration }}
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Waddle Tests (${{ matrix.configuration }})
+          path: "./TestResults/*.trx"
+          reporter: dotnet-trx
 
+      - name: Code Coverage Summary
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        if: matrix.configuration == 'Release'
+        with:
+          filename: "./TestResults/**/coverage.cobertura.xml"
+          badge: true
+          format: markdown
+          output: both
+
+      - name: Publish Binaries
+        run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Waddle-Wpf-App-${{ matrix.configuration }}
+          path: ./publish_output/${{ matrix.configuration }}
