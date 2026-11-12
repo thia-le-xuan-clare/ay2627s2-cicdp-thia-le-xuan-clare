@@ -11,8 +11,24 @@ public partial class App : Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
 
+    /// True when a calibration exists. If not, opens the calibration window and checks again.
+    /// True when a calibration exists. If not, opens the calibration overlay (with an optional message) and checks again.
+    public static bool EnsureCalibrated(string? message = null)
+    {
+        var store = Services.GetRequiredService<ICalibrationStore>();
+        if (store.Load() is not null) return true;
+
+        var window = Services.GetRequiredService<CalibrationWindow>();
+        if (message is not null && window.DataContext is CalibrationViewModel vm)
+            vm.SubtitleText = message;
+
+        window.ShowDialog();
+        return store.Load() is not null;
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
 
         // Database setup
@@ -32,6 +48,9 @@ public partial class App : Application
             sp.GetRequiredService<ILogService>()));
         sc.AddSingleton<MainViewModel>();
         sc.AddSingleton<MainWindow>();
+        sc.AddSingleton<ICalibrationStore, SqliteCalibrationStore>();
+        sc.AddTransient<CalibrationViewModel>();
+        sc.AddTransient<CalibrationWindow>();
         Services = sc.BuildServiceProvider();
 
         var log = Services.GetRequiredService<ILogService>();
@@ -95,6 +114,9 @@ public partial class App : Application
 
         timer.SessionEnded += () => { camera.Release("session"); banner.ClearAll(); };   // session over -> camera off
         timer.RetryCameraRequested += async () => await camera.RetryAsync();
+
+        // First run: offer calibration before the main window opens (they can skip)
+        if (!EnsureCalibrated()) log.Info("Calibration skipped on first run");
 
         Services.GetRequiredService<MainWindow>().Show();
     }

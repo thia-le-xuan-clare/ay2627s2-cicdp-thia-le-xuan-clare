@@ -117,7 +117,7 @@ public sealed class OpenCvCameraService : ICameraService
                 }
 
                 Cv2.ImEncode(".jpg", preview, out var jpg, new[] { (int)ImwriteFlags.JpegQuality, 70 });
-                FrameReady?.Invoke(new FaceFrame(jpg, found, faceWidth, frame.Width, brightness));
+                FrameReady?.Invoke(new FaceFrame(jpg, found, faceWidth, frame.Width, brightness, faces.Length));
 
                 token.WaitHandle.WaitOne(200);      // about 5 frames per second, wakes early on Stop
             }

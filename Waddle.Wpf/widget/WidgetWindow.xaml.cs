@@ -113,11 +113,51 @@ public partial class WidgetWindow : Window
     private void Close_Click(object sender, RoutedEventArgs e) => Close();                 // timer keeps running
     private void Pause_Click(object sender, RoutedEventArgs e) => TimeTracker.Instance.TogglePause();
 
-    private void Stop_Click(object sender, RoutedEventArgs e)
+    private bool _confirmingStop;
+
+    private async void Stop_Click(object sender, RoutedEventArgs e)
     {
-        TimeTracker.Instance.Stop();
-        Close();
+        if (sender is not System.Windows.Controls.Button btn)
+        {
+            TimeTracker.Instance.Stop();
+            Close();
+            return;
+        }
+
+        // Second click within 3 seconds -> stop timer and close widget
+        if (_confirmingStop)
+        {
+            _confirmingStop = false;
+            ResetStopButton(btn);
+            TimeTracker.Instance.Stop();
+            Close();
+            return;
+        }
+
+        // First click -> switch to coral-red "Confirm?" state
+        _confirmingStop = true;
+        btn.Content = "Confirm stop?";
+        btn.Background = (System.Windows.Media.Brush)FindResource("Bad");
+        btn.BorderBrush = (System.Windows.Media.Brush)FindResource("Bad");
+        btn.Foreground = (System.Windows.Media.Brush)FindResource("Surface");
+
+        // Auto-reset after 3 seconds if not clicked
+        await Task.Delay(3000);
+        if (_confirmingStop)
+        {
+            _confirmingStop = false;
+            ResetStopButton(btn);
+        }
     }
+
+    private static void ResetStopButton(System.Windows.Controls.Button btn)
+    {
+        btn.Content = "Stop";
+        btn.ClearValue(BackgroundProperty);
+        btn.ClearValue(BorderBrushProperty);
+        btn.ClearValue(ForegroundProperty);
+    }
+
 
     // "Try again" on the camera reminder
     private void Retry_Click(object sender, RoutedEventArgs e) =>

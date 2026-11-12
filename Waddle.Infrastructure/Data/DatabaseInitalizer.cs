@@ -62,8 +62,9 @@ public class DatabaseInitializer
             );
 
             CREATE TABLE IF NOT EXISTS settings (
-                settings_key INTEGER PRIMARY KEY,
-                face_value   REAL NOT NULL
+            settings_key  INTEGER PRIMARY KEY,
+            face_value    REAL NOT NULL CHECK (face_value > 0 AND face_value <= 1),
+            calibrated_at TEXT NOT NULL
             );
 
             -- Fixed values the app needs

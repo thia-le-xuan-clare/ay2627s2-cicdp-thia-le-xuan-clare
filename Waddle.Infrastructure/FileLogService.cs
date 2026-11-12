@@ -23,8 +23,14 @@ public sealed class FileLogService : ILogService
         var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{kind.ToUpper()}] {message}{Environment.NewLine}";
         lock (_lock)
         {
-            File.AppendAllText(Path.Combine(LogDirectory, $"{kind}.log"), line);
+            try
+            {
+                File.AppendAllText(Path.Combine(LogDirectory, $"{kind}.log"), line);
+            }
+            catch (IOException)
+            {
+                // Ignore locked log files so logging never crashes the app
+            }
         }
     }
-    
 }

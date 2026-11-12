@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Waddle.Wpf;
 
@@ -33,6 +34,9 @@ public partial class MainWindow : Window
     private void Pause_Click(object sender, RoutedEventArgs e) => TimeTracker.Instance.TogglePause();
     private void Stop_Click(object sender, RoutedEventArgs e) => TimeTracker.Instance.ConfirmAndStop();
 
+    private void Calibrate_Click(object sender, RoutedEventArgs e) =>
+    App.Services.GetRequiredService<CalibrationWindow>().Show();
+
     // "Try again" on the camera reminder
     private async void Retry_Click(object sender, RoutedEventArgs e)
     {
@@ -43,6 +47,7 @@ public partial class MainWindow : Window
     }
 
     // The camera is checked BEFORE the timer starts: no camera, no timer.
+    // Calibration is checked FIRST, then the camera, then the timer: no calibration, no camera, no timer.
     private async Task StartSessionAsync()
     {
         if (TimeTracker.Instance.IsRunning) { OpenWidget(WidgetMode.Session); return; }
@@ -50,8 +55,17 @@ public partial class MainWindow : Window
         _starting = true;
         try
         {
+            if (!App.EnsureCalibrated("Calibrate your face size first, then Waddle can start your timer."))
+                return;     // skipped: no camera, no timer, no widget
+
             if (!await CameraMonitor.Instance.AcquireAsync("session")) return;   // reminder banner explains why
-            TimeTracker.Instance.Start();
+
+            if (!TimeTracker.Instance.Start())          // backstop: blocked for any other reason
+            {
+                CameraMonitor.Instance.Release("session");
+                return;
+            }
+
             OpenWidget(WidgetMode.Session);
         }
         finally { _starting = false; }
