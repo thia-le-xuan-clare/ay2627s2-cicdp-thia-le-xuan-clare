@@ -1,21 +1,10 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow will build, test, sign and package a WPF or Windows Forms desktop application
-# built on .NET Core.
-# To learn how to migrate your existing application to .NET Core,
-# refer to https://docs.microsoft.com/en-us/dotnet/desktop-wpf/migration/convert-project-from-net-framework
-#
-# This workflow will build, test, and publish a WPF or Windows Forms desktop application built on modern .NET.
 name: .NET Core Desktop
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
 
 permissions:
   checks: write
@@ -28,7 +17,7 @@ jobs:
       matrix:
         configuration: [Debug, Release]
 
-    runs-on: windows-latest
+    runs-on: windows-latest  
 
     env:
       Solution_Name: Waddle.slnx
@@ -36,64 +25,67 @@ jobs:
       UI_Test_Project_Path: Waddle.UITests/Waddle.UITests.csproj
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+    - name: Install .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: |
+          8.0.x
+          10.0.x
 
-      - name: Restore the application
-        run: dotnet restore ${{ env.Solution_Name }}
+    - name: Restore the application
+      run: dotnet restore ${{ env.Solution_Name }}
 
-      - name: Build solution
-        run: dotnet build ${{ env.Solution_Name }} --configuration ${{ matrix.configuration }} --no-restore
+    - name: Build solution
+      run: dotnet build ${{ env.Solution_Name }} --configuration ${{ matrix.configuration }} --no-restore
 
-      - name: Execute unit and integration tests
-        run: >
-          dotnet test ${{ env.Test_Project_Path }}
-          --configuration ${{ matrix.configuration }}
-          --no-build
-          --logger "trx;LogFileName=test-results-${{ matrix.configuration }}.trx"
-          --collect:"XPlat Code Coverage"
-          --results-directory ./TestResults
+    - name: Execute unit and integration tests
+      run: >
+        dotnet test ${{ env.Test_Project_Path }}
+        --configuration ${{ matrix.configuration }}
+        --no-build
+        --logger "trx;LogFileName=test-results-${{ matrix.configuration }}.trx"
+        --collect:"XPlat Code Coverage"
+        --results-directory ./TestResults
 
-      - name: Execute WPF UI automation tests
-        if: matrix.configuration == 'Release'
-        run: >
-          dotnet test ${{ env.UI_Test_Project_Path }}
-          --configuration ${{ matrix.configuration }}
-          --no-build
-          --logger "trx;LogFileName=ui-test-results.trx"
-          --results-directory ./TestResults
+    - name: Execute WPF UI automation tests
+      if: matrix.configuration == 'Release'
+      run: >
+        dotnet test ${{ env.UI_Test_Project_Path }}
+        --configuration ${{ matrix.configuration }}
+        --no-build
+        --logger "trx;LogFileName=ui-test-results.trx"
+        --results-directory ./TestResults
 
-      - name: Publish Test Results
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: Waddle Tests (${{ matrix.configuration }})
-          path: "./TestResults/*.trx"
-          reporter: dotnet-trx
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Waddle Tests (${{ matrix.configuration }})
+        path: './TestResults/*.trx'
+        reporter: dotnet-trx
 
-      - name: Code Coverage Summary
-        uses: irongut/CodeCoverageSummary@v1.3.0
-        if: matrix.configuration == 'Release'
-        with:
-          filename: "./TestResults/**/coverage.cobertura.xml"
-          badge: true
-          format: markdown
-          output: both
+    - name: Code Coverage Summary
+      uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+      if: matrix.configuration == 'Release'
+      with:
+        reports: './TestResults/**/coverage.cobertura.xml'
+        targetdir: './CoverageReport'
+        reporttypes: 'MarkdownSummaryGithub'
 
-      - name: Publish Binaries
-        run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
+    - name: Publish Coverage to Job Summary
+      if: matrix.configuration == 'Release'
+      run: Get-Content ./CoverageReport/SummaryGithub.md >> $env:GITHUB_STEP_SUMMARY
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Waddle-Wpf-App-${{ matrix.configuration }}
-          path: ./publish_output/${{ matrix.configuration }}
+    - name: Publish Binaries
+      run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Waddle-Wpf-App-${{ matrix.configuration }}
+        path: ./publish_output/${{ matrix.configuration }}
