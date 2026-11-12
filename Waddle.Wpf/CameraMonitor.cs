@@ -111,6 +111,10 @@ public sealed class CameraMonitor : INotifyPropertyChanged
     // ---------- what the UI binds to ----------
     public ImageSource? Frame { get; private set; }
     public string FaceText { get; private set; } = "";
+
+    public int FaceCount { get; private set; }
+    public double FaceRatio { get; private set; }
+
     public string? Problem { get; private set; }
     public bool IsOn { get; private set; }
     public bool IsChecking { get; private set; }
@@ -282,6 +286,8 @@ public sealed class CameraMonitor : INotifyPropertyChanged
         if (_started) Log?.Security("Camera off");
         StopHardware();
         FaceText = "";
+        FaceCount = 0;
+        FaceRatio = 0;
         ResetTracking();
     }
 
@@ -304,6 +310,8 @@ public sealed class CameraMonitor : INotifyPropertyChanged
         _frameDark = dark;
 
         Frame = image;
+        FaceCount = dark ? 0 : f.FaceCount;
+        FaceRatio = f.FaceRatio;
         FaceText = dark ? "Camera looks covered" : f.FaceFound ? $"Face found: {f.FaceRatio:P0} of frame" : "No face found";
         _lastFrame = now;
         IsOn = true;

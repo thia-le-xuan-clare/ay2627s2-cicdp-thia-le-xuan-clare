@@ -6,8 +6,10 @@ namespace Waddle.Core;
 /// One camera frame (already drawn with the face box) plus what the detector found.
 /// Brightness is the average grey level of the frame: 0 = pure black, 255 = pure white.
 /// A covered lens gives a very low number.
+/// FaceCount is how many faces the detector found (calibration needs exactly 1).
 /// </summary>
-public sealed record FaceFrame(byte[] Jpeg, bool FaceFound, int FaceWidth, int FrameWidth, double Brightness = 255)
+public sealed record FaceFrame(byte[] Jpeg, bool FaceFound, int FaceWidth, int FrameWidth,
+                               double Brightness = 255, int FaceCount = 0)
 {
     /// <summary>Face width as a fraction of the frame width (same at any camera resolution).</summary>
     public double FaceRatio => FrameWidth == 0 ? 0 : (double)FaceWidth / FrameWidth;

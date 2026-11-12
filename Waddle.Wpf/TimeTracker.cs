@@ -98,9 +98,17 @@ public sealed class TimeTracker : INotifyPropertyChanged
     };
 
     // ---------- actions ----------
-    public void Start()
+    /// <summary>Returns true if the timer is running afterwards (false = blocked, e.g. not calibrated).</summary>
+    public bool Start()
     {
-        if (IsRunning) return;
+        if (IsRunning) return true;     // already running, e.g. "Open widget"
+
+        if (!App.EnsureCalibrated())
+        {
+            Log?.Info("Start blocked: not calibrated");
+            return false;
+        }
+
         IsRunning = true;
         SetReason(PauseReason.None);
         _session = TimeSpan.Zero;
@@ -108,6 +116,7 @@ public sealed class TimeTracker : INotifyPropertyChanged
         _timer.Start();
         Log?.Info("Timer started");
         Changed();
+        return true;
     }
 
     /// <summary>The Pause / Resume button. What it does depends on why the timer is paused.</summary>
@@ -142,12 +151,10 @@ public sealed class TimeTracker : INotifyPropertyChanged
     public bool ConfirmAndStop()
     {
         if (!IsRunning) return false;
-        var answer = MessageBox.Show("Stop the timer? Your time so far is saved.", "Waddle",
-            MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
-        if (answer != MessageBoxResult.Yes) return false;
         Stop();
         return true;
     }
+
 
     public void Stop()
     {
