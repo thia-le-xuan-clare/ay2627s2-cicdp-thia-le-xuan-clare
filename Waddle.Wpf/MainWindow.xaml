@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Waddle.Wpf"
         mc:Ignorable="d"
+        Icon="pack://application:,,,/Assets/duck-icon/duck_happy.ico"
         Title="Waddle" Width="780" Height="540" MinWidth="600" MinHeight="420"
         Background="{StaticResource Bg}"
         FontFamily="Segoe UI Variable, Segoe UI">
