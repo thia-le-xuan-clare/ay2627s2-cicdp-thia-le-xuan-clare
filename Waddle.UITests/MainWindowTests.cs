@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Definitions;
 using FlaUI.Core.Tools;
 using FlaUI.UIA3;
 using Xunit;
@@ -17,7 +18,6 @@ namespace Waddle.UITests
 
         public WaddleAppTests()
         {
-            // Ensure a clean first-run database state for each test
             _dbPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Waddle",
@@ -68,7 +68,6 @@ namespace Waddle.UITests
         [Fact]
         public void App_Launches_And_ShowsMainWindow()
         {
-            // Verifies first-run calibration opens, can be exited, and MainWindow loads
             var mainWindow = SkipFirstRunCalibrationAndGetMainWindow();
             Assert.False(string.IsNullOrWhiteSpace(mainWindow.Title));
         }
@@ -78,16 +77,13 @@ namespace Waddle.UITests
         {
             var calWindow = WaitForWindowByTitle("Waddle - Calibrate", 15);
 
-            // Verify first-run header is displayed
             var header = calWindow.FindFirstDescendant(cf => cf.ByName("Get started!"));
             Assert.NotNull(header);
 
-            // Verify Exit button is present and enabled
             var exitBtn = calWindow.FindFirstDescendant(cf => cf.ByName("Exit"))?.AsButton();
             Assert.NotNull(exitBtn);
             Assert.True(exitBtn!.IsEnabled);
 
-            // On CI (no webcam), camera check finishes with a problem and Scan button switches to "Try again"
             var tryAgainResult = Retry.WhileNull(
                 () => calWindow.FindFirstDescendant(cf => cf.ByName("Try again"))?.AsButton(),
                 timeout: TimeSpan.FromSeconds(10));
@@ -101,16 +97,14 @@ namespace Waddle.UITests
         {
             var mainWindow = SkipFirstRunCalibrationAndGetMainWindow();
 
-            // Click the "Calibrate" button on MainWindow
-            var calibrateBtn = mainWindow.FindFirstDescendant(cf => cf.ByName("Calibrate"))?.AsButton();
+            // Exact button Content from MainWindow.xaml: "Calibrate face size"
+            var calibrateBtn = mainWindow.FindFirstDescendant(cf => cf.ByName("Calibrate face size"))?.AsButton();
             Assert.NotNull(calibrateBtn);
             calibrateBtn!.Invoke();
 
-            // CalibrationWindow should open again
             var calWindow = WaitForWindowByTitle("Waddle - Calibrate", 10);
             Assert.NotNull(calWindow);
 
-            // Close calibration overlay
             var exitBtn = calWindow.FindFirstDescendant(cf => cf.ByName("Exit"))?.AsButton();
             Assert.NotNull(exitBtn);
             exitBtn!.Invoke();
@@ -121,22 +115,23 @@ namespace Waddle.UITests
         {
             var mainWindow = SkipFirstRunCalibrationAndGetMainWindow();
 
-            // Click "Start" on MainWindow without having calibrated
-            var startBtn = mainWindow.FindFirstDescendant(cf => cf.ByName("Start"))?.AsButton();
+            // TimerButtonText starts with "Start" (e.g. "Start" or "Start session")
+            var startBtn = mainWindow.FindFirstDescendant(
+                cf => cf.ByName("Start", PropertyConditionFlags.MatchSubstring))?.AsButton();
             Assert.NotNull(startBtn);
             startBtn!.Invoke();
 
-            // StartSessionAsync calls App.EnsureCalibrated("Calibrate your face size first...")
+            // StartSessionAsync opens CalibrationWindow because no calibration exists yet
             var calWindow = WaitForWindowByTitle("Waddle - Calibrate", 10);
             Assert.NotNull(calWindow);
 
-            // Exit calibration without scanning -> timer should NOT start
+            // Exit without calibrating -> timer remains stopped
             var exitBtn = calWindow.FindFirstDescendant(cf => cf.ByName("Exit"))?.AsButton();
             Assert.NotNull(exitBtn);
             exitBtn!.Invoke();
 
-            // Verify "Start" button is still present (session did not start)
-            var startBtnAfter = mainWindow.FindFirstDescendant(cf => cf.ByName("Start"))?.AsButton();
+            var startBtnAfter = mainWindow.FindFirstDescendant(
+                cf => cf.ByName("Start", PropertyConditionFlags.MatchSubstring))?.AsButton();
             Assert.NotNull(startBtnAfter);
         }
 
