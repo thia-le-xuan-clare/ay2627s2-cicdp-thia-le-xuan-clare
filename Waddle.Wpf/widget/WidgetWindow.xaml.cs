@@ -6,7 +6,7 @@ using System.Windows.Interop;
 
 namespace Waddle.Wpf;
 
-public enum WidgetMode { Session, Calibrate }
+public enum WidgetMode { Session, Calibrate, Reminder }
 
 public partial class WidgetWindow : Window
 {
@@ -18,10 +18,16 @@ public partial class WidgetWindow : Window
 
     private bool _big;                      // true = camera + timer, false = timer only
     private WidgetMode _mode = WidgetMode.Session;
+    private readonly DuckAnimator _duck = new();   // swaps the duck frames when collapsed
+    private bool? _bigBeforeReminder;               // size to go back to after the idle reminder
+
+    /// <summary>The "Start session" button in reminder mode was clicked.</summary>
+    public event Action? StartRequested;
 
     public WidgetWindow()
     {
         InitializeComponent();
+        DuckPanel.DataContext = _duck;
 
         _big = _lastBig ?? true;
         ApplyLayout();
@@ -64,22 +70,48 @@ public partial class WidgetWindow : Window
     // ---------------- mode ----------------
     public void SetMode(WidgetMode mode)
     {
+        var previous = _mode;
         _mode = mode;
         bool session = mode == WidgetMode.Session;
+        bool calibrate = mode == WidgetMode.Calibrate;
+        bool reminder = mode == WidgetMode.Reminder;
+
         SessionPanel.Visibility = session ? Visibility.Visible : Visibility.Collapsed;
-        CalText.Visibility = session ? Visibility.Collapsed : Visibility.Visible;
+        ReminderText.Visibility = reminder ? Visibility.Visible : Visibility.Collapsed;
+        CalText.Visibility = calibrate ? Visibility.Visible : Visibility.Collapsed;
         Controls.Visibility = session ? Visibility.Visible : Visibility.Collapsed;
+        StartButton.Visibility = reminder ? Visibility.Visible : Visibility.Collapsed;
+
+        if (reminder)
+        {
+            _bigBeforeReminder ??= _big;                    // remember the size so the next session looks like before
+            if (_big) SetBig(false);                        // the reminder lives in the small form with the duck
+            _duck.Force(DuckEmotion.Sad);
+        }
+        else if (previous == WidgetMode.Reminder)
+        {
+            _duck.Force(null);                              // duck follows the timer again
+            if (_bigBeforeReminder is bool wasBig)
+            {
+                _bigBeforeReminder = null;
+                if (wasBig != _big) SetBig(wasBig);
+            }
+        }
 
         if (session)
         {
             CameraMonitor.Instance.Release("calibration");  // the session keeps the camera on if it needs it
         }
-        else
+        else if (calibrate)
         {
             if (!_big) SetBig(true);                        // calibrating needs the camera visible
             _ = CameraMonitor.Instance.AcquireAsync("calibration");
         }
     }
+
+    // ---------------- duck ----------------
+    /// <summary>Call with true while the person is slouching (duck turns angry), false when they sit up again.</summary>
+    public void SetSlouching(bool slouching) => _duck.Force(slouching ? DuckEmotion.Angry : null);
 
     // ---------------- layout ----------------
     private void ApplyLayout()
@@ -88,6 +120,9 @@ public partial class WidgetWindow : Window
         TimerRow.Height = _big ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
         SizeButton.Content = _big ? "\uE73F" : "\uE740";
         SizeButton.ToolTip = _big ? "Make smaller" : "Make bigger";
+
+        DuckPanel.Visibility = _big ? Visibility.Collapsed : Visibility.Visible;   // duck only in the collapsed form
+        if (_big) _duck.Stop(); else _duck.Start();
     }
 
     private void SetBig(bool big)
@@ -100,7 +135,7 @@ public partial class WidgetWindow : Window
 
     private void Size_Click(object sender, RoutedEventArgs e)
     {
-        if (_mode == WidgetMode.Calibrate) return;
+        if (_mode != WidgetMode.Session) return;            // calibrate needs the camera, reminder needs the duck
         SetBig(!_big);
     }
 
@@ -112,6 +147,7 @@ public partial class WidgetWindow : Window
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();                 // timer keeps running
     private void Pause_Click(object sender, RoutedEventArgs e) => TimeTracker.Instance.TogglePause();
+    private void Start_Click(object sender, RoutedEventArgs e) => StartRequested?.Invoke();
 
     private bool _confirmingStop;
 
@@ -167,7 +203,10 @@ public partial class WidgetWindow : Window
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        _duck.Stop();
         CameraMonitor.Instance.Release("calibration");      // no-op if a session still needs the camera
-        _left = Left; _top = Top; _width = ActualWidth; _height = ActualHeight; _lastBig = _big;
+        _left = Left; _top = Top;
+        if (_bigBeforeReminder is null) { _width = ActualWidth; _height = ActualHeight; }   // don't save the reminder's small size
+        _lastBig = _bigBeforeReminder ?? _big;
     }
 }

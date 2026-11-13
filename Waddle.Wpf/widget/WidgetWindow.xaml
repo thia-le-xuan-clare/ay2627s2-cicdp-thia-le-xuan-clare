@@ -55,19 +55,38 @@
             </Border>
         </Grid>
 
-        <!-- Timer (scales with the window) -->
-        <Viewbox Grid.Row="2" Margin="12,8" Stretch="Uniform">
-            <StackPanel x:Name="SessionPanel">
-                <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=SessionText}"
-                           FontSize="32" FontWeight="ExtraBold" Foreground="{StaticResource Ink}" HorizontalAlignment="Center"/>
-                <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource Muted}" FontSize="13">
-                    <Run Text="Today "/>
-                    <Run Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TodayText, Mode=OneWay}"/>
-                </TextBlock>
-                <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource Muted}" FontSize="12"
-                           Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=StatusText}"/>
-            </StackPanel>
-        </Viewbox>
+        <!-- Timer row: duck (collapsed form only) + timer, both scale with the window -->
+        <Grid Grid.Row="2" Margin="12,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Duck: fixed canvas + bottom-aligned frames so swapping frames never makes it jump -->
+            <Viewbox x:Name="DuckPanel" Grid.Column="0" Margin="0,0,10,0" Visibility="Collapsed">
+                <Grid Width="240" Height="320">
+                    <Image Source="{Binding Frame}" Width="{Binding FrameWidth}" Height="{Binding FrameHeight}"
+                           Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                </Grid>
+            </Viewbox>
+
+            <Viewbox Grid.Column="1" Stretch="Uniform">
+                <StackPanel x:Name="SessionPanel">
+                    <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=SessionText}"
+                               FontSize="32" FontWeight="ExtraBold" Foreground="{StaticResource Ink}" HorizontalAlignment="Center"/>
+                    <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource Muted}" FontSize="13">
+                        <Run Text="Today "/>
+                        <Run Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TodayText, Mode=OneWay}"/>
+                    </TextBlock>
+                    <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource Muted}" FontSize="12"
+                               Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=StatusText}"/>
+                </StackPanel>
+            </Viewbox>
+
+            <!-- Temporary message that replaces the timer when the idle reminder pops the widget up -->
+            <TextBlock x:Name="ReminderText" Grid.Column="1" Visibility="Collapsed" VerticalAlignment="Center"
+                       TextWrapping="Wrap" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Ink}"
+                       Text="Waddle misses you! Ready to start a new session?"/>
+        </Grid>
 
         <!-- Shown instead of the timer when Recalibrate is clicked -->
         <TextBlock x:Name="CalText" Grid.Row="2" Visibility="Collapsed" Margin="14,10" TextWrapping="Wrap"
@@ -82,5 +101,9 @@
                     Content="{Binding Source={x:Static local:TimeTracker.Instance}, Path=PauseButtonText}"/>
             <Button Grid.Column="2" Content="Stop" Padding="8" Style="{StaticResource PrimaryButton}" Click="Stop_Click"/>
         </Grid>
+
+        <!-- Reminder mode: replaces Pause / Stop -->
+        <Button x:Name="StartButton" Grid.Row="3" Margin="12,0,12,14" Padding="8" Visibility="Collapsed"
+                Content="Start session" Style="{StaticResource PrimaryButton}" Click="Start_Click"/>
     </Grid>
 </Window>

@@ -71,11 +71,19 @@ public partial class MainWindow : Window
         finally { _starting = false; }
     }
 
+    /// <summary>Called by IdleReminder: pops the widget up with the "start again" message and the sad duck.</summary>
+    public void ShowIdleReminder()
+    {
+        if (TimeTracker.Instance.IsRunning) return;
+        OpenWidget(WidgetMode.Reminder);
+    }
+
     private void OpenWidget(WidgetMode mode)
     {
         if (_widget == null)
         {
             _widget = new WidgetWindow();           // deliberately NOT owned by this window
+            _widget.StartRequested += async () => await StartSessionAsync();   // "Start session" in the idle reminder
             _widget.Closed += (_, _) =>
             {
                 _widget = null;
