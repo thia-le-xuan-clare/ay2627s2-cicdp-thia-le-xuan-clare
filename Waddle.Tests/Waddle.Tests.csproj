@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -21,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Waddle.Core\Waddle.Core.csproj" />
     <ProjectReference Include="..\Waddle.Infrastructure\Waddle.Infrastructure.csproj" />
+    <ProjectReference Include="..\Waddle.Wpf\Waddle.Wpf.csproj" />
   </ItemGroup>
 
 </Project>

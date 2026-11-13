@@ -1,12 +1,10 @@
-using System;
-using System.Threading.Tasks;
 using System.Windows.Threading;
 using Waddle.Core;
 
 namespace Waddle.Wpf;
 
-/// <summary>How urgent a banner is. A more urgent one replaces a less urgent one. Posture warnings can slot in above these later.</summary>
-public enum BannerKind { Away = 1, Covered = 2, CameraOff = 3 }
+/// <summary>How urgent a banner is. A more urgent one replaces a less urgent one.</summary>
+public enum BannerKind { Away = 1, Covered = 2, CameraOff = 3, Posture = 4 }
 
 /// <summary>
 /// Shows ONE small banner at a time. It stays hidden while the widget is open and expanded (the widget
@@ -30,6 +28,7 @@ public sealed class BannerService
         public bool Nudged;
         public bool Dismissed;
         public bool LoggedWaiting;
+        public DuckEmotion? Duck;            // show this duck animation on the banner (null = no duck)
     }
 
     private readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromMilliseconds(500) };
@@ -55,7 +54,8 @@ public sealed class BannerService
     /// <param name="delay">Wait this long before actually showing it (cancelled if Clear is called first).</param>
     /// <param name="nudge">Remind once more after about 10 minutes if it was dismissed and the problem remains.</param>
     public void Show(BannerKind kind, string message, string? buttonText = null, Action? onButton = null,
-                     Func<Task>? onButtonAsync = null, TimeSpan? delay = null, bool nudge = true)
+                     Func<Task>? onButtonAsync = null, TimeSpan? delay = null, bool nudge = true,
+                     DuckEmotion? duck = null)
     {
         if (_current != null && _current.Kind >= kind) return;
 
@@ -69,13 +69,23 @@ public sealed class BannerService
             OnButton = onButton,
             OnButtonAsync = onButtonAsync,
             ShowAt = DateTime.Now + wait,
-            Nudge = nudge
+            Nudge = nudge,
+            Duck = duck
         };
         Log?.Info(wait > TimeSpan.Zero
             ? $"Banner queued: \"{message}\" (shows in {wait.TotalSeconds:0} s)"
             : $"Banner queued: \"{message}\"");
         _tick.Start();
         Refresh();
+    }
+
+    /// <summary>Changes the text of the banner of this kind while it is up (used for the posture countdown).</summary>
+    public void UpdateMessage(BannerKind kind, string message)
+    {
+        var e = _current;
+        if (e == null || e.Kind != kind) return;
+        e.Message = message;
+        if (_shown == e) _window?.SetContent(message, e.ButtonText, e.Duck);
     }
 
     /// <summary>Removes the banner if it is of this kind (the problem is over).</summary>
@@ -104,9 +114,10 @@ public sealed class BannerService
             return;
         }
 
-        // an expanded widget shows the status itself; closed or collapsed doesn't
+        // an expanded widget shows the status itself; closed or collapsed doesn't.
+        // The posture warning is the exception: the widget has no posture message, so it always shows.
         var tracker = TimeTracker.Instance;
-        if (tracker.IsWidgetOpen && !tracker.IsWidgetCollapsed)
+        if (e.Kind != BannerKind.Posture && tracker.IsWidgetOpen && !tracker.IsWidgetCollapsed)
         {
             if (!e.LoggedWaiting)
             {
@@ -136,7 +147,7 @@ public sealed class BannerService
         if (_shown == e) return;                                    // already on screen
 
         _window ??= CreateWindow();
-        _window.SetContent(e.Message, e.ButtonText);
+        _window.SetContent(e.Message, e.ButtonText, e.Duck);
         if (!_window.IsVisible) _window.Show();                     // ShowActivated=false: no focus stolen
         _shown = e;
         Log?.Info($"Banner shown: \"{e.Message}\"");

@@ -51,6 +51,15 @@
             <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.25"/>
         </Border.Effect>
         <StackPanel Orientation="Horizontal">
+            <!-- Duck animation (only for banners that ask for one, e.g. the posture warning).
+                 Fixed canvas + bottom-aligned frames so swapping frames never makes it jump. -->
+            <Viewbox x:Name="DuckPanel" Height="84" Margin="0,0,14,0" VerticalAlignment="Center" Visibility="Collapsed">
+                <Grid Width="240" Height="320">
+                    <Image Source="{Binding Frame}" Width="{Binding FrameWidth}" Height="{Binding FrameHeight}"
+                           Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                </Grid>
+            </Viewbox>
+
             <TextBlock x:Name="MessageText" Foreground="{StaticResource BannerText}" FontSize="14"
                        FontWeight="SemiBold" VerticalAlignment="Center"
                        TextWrapping="Wrap" MaxWidth="360"/>

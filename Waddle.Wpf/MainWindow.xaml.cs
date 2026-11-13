@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Waddle.Wpf;
@@ -11,6 +10,7 @@ public partial class MainWindow : Window
 {
     private WidgetWindow? _widget;
     private bool _starting;
+    private bool _slouching;                    // so a widget opened while slouching starts with the angry duck
 
     public MainWindow(MainViewModel vm)
     {
@@ -71,6 +71,13 @@ public partial class MainWindow : Window
         finally { _starting = false; }
     }
 
+    /// <summary>Called when posture goes bad / good: the widget's duck turns angry (or back).</summary>
+    public void SetSlouching(bool slouching)
+    {
+        _slouching = slouching;
+        _widget?.SetSlouching(slouching);
+    }
+
     /// <summary>Called by IdleReminder: pops the widget up with the "start again" message and the sad duck.</summary>
     public void ShowIdleReminder()
     {
@@ -95,5 +102,6 @@ public partial class MainWindow : Window
             _widget.Show();                         // ShowActivated=false: dashboard stays where it is
         }
         _widget.SetMode(mode);
+        if (mode == WidgetMode.Session) _widget.SetSlouching(_slouching);
     }
 }
