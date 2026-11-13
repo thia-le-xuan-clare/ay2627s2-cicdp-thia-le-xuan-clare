@@ -31,6 +31,7 @@
   <ItemGroup>
     <Resource Include="Assets\duck-icon\*.png" />
     <Resource Include="Assets\duck-icon\*.ico" />
+    <Resource Include="Assets\ducks-animation\**\*.png" />
   </ItemGroup>
 
 </Project>

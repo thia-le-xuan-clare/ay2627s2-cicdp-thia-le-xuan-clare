@@ -135,7 +135,11 @@ public partial class App : Application
                 if (reason == PauseReason.None) camera.ResetAwayWatch();
             };
 
+            var idle = IdleReminder.Instance;
+            idle.Log = log;                         // so the log shows why the reminder did or didn't appear
             timer.SessionEnded += () => { camera.Release("session"); banner.ClearAll(); };
+            timer.SessionEnded += idle.Arm;
+            idle.Due += () => Services.GetRequiredService<MainWindow>().ShowIdleReminder();
             timer.RetryCameraRequested += async () => await camera.RetryAsync();
 
             if (!EnsureCalibrated()) log.Info("Calibration skipped on first run");
