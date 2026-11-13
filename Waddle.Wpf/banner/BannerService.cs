@@ -45,6 +45,9 @@ public sealed class BannerService
     /// <summary>Set once at startup. Banner events go to the info log so you can see why a banner did or didn't appear.</summary>
     public ILogService? Log { get; set; }
 
+    /// <summary>Raised when the user clicks the close button on a banner.</summary>
+    public event Action<BannerKind>? BannerDismissed;
+
     /// <summary>
     /// Asks for a banner. Ignored if a banner of the same or higher urgency is already waiting;
     /// otherwise it replaces the current one.
@@ -158,16 +161,19 @@ public sealed class BannerService
         var w = new BannerWindow();
         w.ActionClicked += async () => await OnActionAsync();
         w.DismissClicked += () =>
- {
-     if (_current != null)
-     {
-         _current.Dismissed = true;                              // only hides; the timer stays paused
-         if (_current.Nudge && !_current.Nudged)
-             _current.NudgeAt = DateTime.Now + MonitorTuning.BannerNudge;   // 10 min from now, not from first show
-     }
-     Log?.Info("Banner dismissed");
-     HideWindow();
- };
+        {
+            BannerKind? dismissedKind = null;
+            if (_current != null)
+            {
+                dismissedKind = _current.Kind;
+                _current.Dismissed = true;                              // only hides; the timer stays paused
+                if (_current.Nudge && !_current.Nudged)
+                    _current.NudgeAt = DateTime.Now + MonitorTuning.BannerNudge;   // 10 min from now, not from first show
+            }
+            Log?.Info("Banner dismissed");
+            HideWindow();
+            if (dismissedKind is { } kind) BannerDismissed?.Invoke(kind);
+        };
         return w;
     }
 

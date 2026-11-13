@@ -42,6 +42,8 @@ public sealed class PostureMonitor
     public event Action? CountdownExpired;
     /// <summary>They sat up, or the session stopped / paused: clear the warning.</summary>
     public event Action? SlouchEnded;
+    /// <summary>Same as SlouchEnded, passing the reason ("sat up" or "session not active").</summary>
+    public event Action<string>? SlouchEndedWithReason;
 
     private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private double? _baseline;                 // calibrated face width (share of frame), loaded when tracking begins
@@ -54,6 +56,14 @@ public sealed class PostureMonitor
     {
         _poll.Tick += (_, _) => Check();
         _poll.Start();                         // starts as soon as App touches PostureMonitor.Instance
+    }
+
+    /// <summary>Clears the cached baseline so the updated calibration is loaded on the next check.</summary>
+    public void ReloadBaseline()
+    {
+        _baseline = null;
+        _smooth = 0;
+        _bigSince = _normalSince = null;
     }
 
     private void Check()
@@ -139,6 +149,7 @@ public sealed class PostureMonitor
         _bigSince = _normalSince = null;
         Log?.Info($"Posture: warning cleared ({why})");
         SlouchEnded?.Invoke();
+        SlouchEndedWithReason?.Invoke(why);
     }
 
     // session stopped / paused / camera off: forget everything (the calibration is read again next time)

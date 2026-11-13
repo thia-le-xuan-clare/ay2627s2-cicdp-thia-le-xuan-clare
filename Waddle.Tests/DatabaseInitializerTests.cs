@@ -25,7 +25,8 @@ public sealed class DatabaseInitializerTests : IDisposable
     public void Initialize_SeedsTheFixedLookupValues()
     {
         Assert.Equal(2, _temp.Scalar<int>("SELECT COUNT(*) FROM warning_level"));
-        Assert.Equal(3, _temp.Scalar<int>("SELECT COUNT(*) FROM warning_outcome"));
+        Assert.Equal(4, _temp.Scalar<int>("SELECT COUNT(*) FROM warning_outcome"));
+        Assert.Equal("Dismissed", _temp.Scalar<string>("SELECT outcome_name FROM warning_outcome WHERE outcome_id = 4"));
     }
 
     [Fact]
@@ -35,7 +36,7 @@ public sealed class DatabaseInitializerTests : IDisposable
         _temp.Db.Initialize();      // the app does this on every start
 
         Assert.Equal(2, _temp.Scalar<int>("SELECT COUNT(*) FROM warning_level"));
-        Assert.Equal(3, _temp.Scalar<int>("SELECT COUNT(*) FROM warning_outcome"));
+        Assert.Equal(4, _temp.Scalar<int>("SELECT COUNT(*) FROM warning_outcome"));
     }
 
     [Fact]

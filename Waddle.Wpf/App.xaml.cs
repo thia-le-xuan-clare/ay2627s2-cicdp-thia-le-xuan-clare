@@ -76,6 +76,7 @@ public partial class App : Application
             var sc = new ServiceCollection();
             sc.AddSingleton(db);
             sc.AddSingleton<IDailyTimeStore, SqliteDailyTimeStore>();
+            sc.AddSingleton<IWarningEventStore, SqliteWarningEventStore>();
             sc.AddSingleton<ILogService, FileLogService>();
             sc.AddSingleton<ICameraService>(sp => new OpenCvCameraService(
                 Path.Combine(AppContext.BaseDirectory, "haarcascade_frontalface_default.xml"),
@@ -138,21 +139,88 @@ public partial class App : Application
                 if (reason == PauseReason.None) camera.ResetAwayWatch();
             };
 
-            // Posture: face too big for too long -> banner with countdown + angry duck (banner and widget)
+            // Posture: face too big for too long -> banner with countdown -> overlay after 20s
+            var warningStore = Services.GetRequiredService<IWarningEventStore>();
             var posture = PostureMonitor.Instance;
             posture.Store = Services.GetRequiredService<ICalibrationStore>();
             posture.Log = log;
+
+            PostureOverlayWindow? postureOverlay = null;
+            WarningLevel activeWarningLevel = WarningLevel.Banner;
+            bool bannerOutcomeLogged = false;
+            bool overlayOutcomeLogged = false;
+
+            void ClosePostureOverlay()
+            {
+                if (postureOverlay is null) return;
+                postureOverlay.Close();
+                postureOverlay = null;
+            }
+
             posture.SlouchStarted += () =>
             {
+                activeWarningLevel = WarningLevel.Banner;
+                bannerOutcomeLogged = false;
+                overlayOutcomeLogged = false;
                 banner.Show(BannerKind.Posture, PostureText((int)PostureTuning.Countdown.TotalSeconds),
                             nudge: false, duck: DuckEmotion.Angry);
                 Services.GetRequiredService<MainWindow>().SetSlouching(true);
             };
-            posture.CountdownTick += seconds => banner.UpdateMessage(BannerKind.Posture, PostureText(seconds));
-            posture.SlouchEnded += () =>
+
+            posture.CountdownTick += seconds =>
+            {
+                if (activeWarningLevel == WarningLevel.Banner)
+                    banner.UpdateMessage(BannerKind.Posture, PostureText(seconds));
+            };
+
+            banner.BannerDismissed += kind =>
+            {
+                if (kind == BannerKind.Posture && !bannerOutcomeLogged)
+                {
+                    bannerOutcomeLogged = true;
+                    warningStore.Record(WarningLevel.Banner, WarningOutcome.Dismissed, DateTime.Now);
+                }
+            };
+
+            posture.CountdownExpired += () =>
+            {
+                if (!bannerOutcomeLogged)
+                {
+                    bannerOutcomeLogged = true;
+                    warningStore.Record(WarningLevel.Banner, WarningOutcome.Ignored, DateTime.Now);
+                }
+
+                banner.Clear(BannerKind.Posture);
+                activeWarningLevel = WarningLevel.Overlay;
+                overlayOutcomeLogged = false;
+
+                ClosePostureOverlay();
+                postureOverlay = new PostureOverlayWindow();
+                postureOverlay.HotkeyExitRequested += () =>
+                {
+                    if (!overlayOutcomeLogged)
+                    {
+                        overlayOutcomeLogged = true;
+                        warningStore.Record(WarningLevel.Overlay, WarningOutcome.HotkeyExit, DateTime.Now);
+                    }
+                    ClosePostureOverlay();
+                };
+                postureOverlay.Show();
+            };
+
+            posture.SlouchEndedWithReason += why =>
             {
                 banner.Clear(BannerKind.Posture);
+                ClosePostureOverlay();
                 Services.GetRequiredService<MainWindow>().SetSlouching(false);
+
+                if (activeWarningLevel == WarningLevel.Banner && bannerOutcomeLogged)
+                    return;
+                if (activeWarningLevel == WarningLevel.Overlay && overlayOutcomeLogged)
+                    return;
+
+                var outcome = why == "sat up" ? WarningOutcome.SatUp : WarningOutcome.Ignored;
+                warningStore.Record(activeWarningLevel, outcome, DateTime.Now);
             };
 
             var idle = IdleReminder.Instance;
