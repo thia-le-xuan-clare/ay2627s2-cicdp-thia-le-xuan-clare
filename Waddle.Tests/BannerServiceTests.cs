@@ -1,10 +1,6 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using Waddle.Wpf;
-using Xunit;
 
 namespace Waddle.Tests;
 
@@ -238,6 +234,29 @@ public sealed class BannerServiceTests : IDisposable
         });
 
         Assert.Contains("Banner dismissed", _log.InfoLines);
+    }
+
+    [Fact]
+    public void CloseButton_RaisesBannerDismissedWithTheCurrentKind()
+    {
+        BannerKind? dismissedKind = null;
+        void Handler(BannerKind kind) => dismissedKind = kind;
+
+        _wpf.Invoke(() =>
+        {
+            Banner.BannerDismissed += Handler;
+            try
+            {
+                Banner.Show(BannerKind.Posture, "Please sit up straight", nudge: false, duck: DuckEmotion.Angry);
+                Click("CloseButton");
+            }
+            finally
+            {
+                Banner.BannerDismissed -= Handler;
+            }
+        });
+
+        Assert.Equal(BannerKind.Posture, dismissedKind);
     }
 
     [Fact]

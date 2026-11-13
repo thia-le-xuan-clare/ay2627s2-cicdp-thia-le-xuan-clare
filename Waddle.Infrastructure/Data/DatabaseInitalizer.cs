@@ -73,7 +73,7 @@ public class DatabaseInitializer
                 VALUES (1, 'Banner'), (2, 'Overlay');
 
             INSERT OR IGNORE INTO warning_outcome (outcome_id, outcome_name)
-                VALUES (1, 'SatUp'), (2, 'HotkeyExit'), (3, 'Ignored');
+                VALUES (1, 'SatUp'), (2, 'HotkeyExit'), (3, 'Ignored'), (4, 'Dismissed');
             """;
         command.ExecuteNonQuery();
     }
