@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -23,20 +22,40 @@ public partial class BannerWindow : Window
     /// <summary>The small X was clicked.</summary>
     public event Action? DismissClicked;
 
+    private readonly DuckAnimator _duck = new();
+    private DuckEmotion? _duckEmotion;
+
     public BannerWindow()
     {
         InitializeComponent();
+        DuckPanel.DataContext = _duck;
+        IsVisibleChanged += (_, _) => UpdateDuckRunning();      // only animate while the banner is on screen
     }
 
     private string? _buttonText;
 
-    public void SetContent(string message, string? buttonText)
+    public void SetContent(string message, string? buttonText, DuckEmotion? duck = null)
     {
+        SetDuck(duck);
         _buttonText = buttonText;
         MessageText.Text = message;
         ActionButton.Content = buttonText;
         ActionButton.IsEnabled = true;
         ActionButton.Visibility = string.IsNullOrEmpty(buttonText) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void SetDuck(DuckEmotion? duck)
+    {
+        if (duck == _duckEmotion) return;                       // already showing this one: don't restart the animation
+        _duckEmotion = duck;
+        DuckPanel.Visibility = duck is null ? Visibility.Collapsed : Visibility.Visible;
+        _duck.Force(duck);
+        UpdateDuckRunning();
+    }
+
+    private void UpdateDuckRunning()
+    {
+        if (IsVisible && _duckEmotion is not null) _duck.Start(); else _duck.Stop();
     }
 
     /// <summary>While the action is running the button says "Trying..." and can't be pressed again.</summary>

@@ -1,6 +1,4 @@
-using System;
 using Waddle.Infrastructure.Data;
-using Xunit;
 
 namespace Waddle.Tests;
 

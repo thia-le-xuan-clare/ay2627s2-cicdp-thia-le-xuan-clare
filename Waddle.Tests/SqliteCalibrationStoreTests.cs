@@ -1,8 +1,5 @@
-using System;
-using Microsoft.Data.Sqlite;
 using Waddle.Core;
 using Waddle.Infrastructure.Data;
-using Xunit;
 
 namespace Waddle.Tests;
 

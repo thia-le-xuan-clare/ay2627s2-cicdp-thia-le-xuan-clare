@@ -29,6 +29,9 @@ public partial class App : Application
         return store.Load() is not null;
     }
 
+    private static string PostureText(int secondsLeft) =>
+        secondsLeft > 0 ? $"Please sit up straight\n{secondsLeft}s left" : "Please sit up straight";
+
     protected override void OnStartup(StartupEventArgs e)
     {
         try
@@ -133,6 +136,23 @@ public partial class App : Application
             {
                 if (reason is PauseReason.None or PauseReason.User) banner.ClearAll();
                 if (reason == PauseReason.None) camera.ResetAwayWatch();
+            };
+
+            // Posture: face too big for too long -> banner with countdown + angry duck (banner and widget)
+            var posture = PostureMonitor.Instance;
+            posture.Store = Services.GetRequiredService<ICalibrationStore>();
+            posture.Log = log;
+            posture.SlouchStarted += () =>
+            {
+                banner.Show(BannerKind.Posture, PostureText((int)PostureTuning.Countdown.TotalSeconds),
+                            nudge: false, duck: DuckEmotion.Angry);
+                Services.GetRequiredService<MainWindow>().SetSlouching(true);
+            };
+            posture.CountdownTick += seconds => banner.UpdateMessage(BannerKind.Posture, PostureText(seconds));
+            posture.SlouchEnded += () =>
+            {
+                banner.Clear(BannerKind.Posture);
+                Services.GetRequiredService<MainWindow>().SetSlouching(false);
             };
 
             var idle = IdleReminder.Instance;

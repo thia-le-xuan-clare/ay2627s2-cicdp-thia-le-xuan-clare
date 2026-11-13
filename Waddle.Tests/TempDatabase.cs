@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using Microsoft.Data.Sqlite;
 using Waddle.Infrastructure.Data;
