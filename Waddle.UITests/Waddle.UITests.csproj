@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <ProjectReference Include="..\Waddle.Infrastructure\Waddle.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

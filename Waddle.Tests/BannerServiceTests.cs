@@ -64,6 +64,34 @@ public sealed class BannerServiceTests : IDisposable
         });
     }
 
+    [Fact]
+    public void Show_LessUrgentBehindTheWarning_IsHeldBackAndAppearsOnceTheWarningClears()
+    {
+        _wpf.Invoke(() =>
+        {
+            Banner.Show(BannerKind.Posture, "20s left", delay: Later);
+            Banner.Show(BannerKind.CameraOff, "camera off", delay: Later);
+            Assert.Equal("20s left", CurrentMessage());
+
+            Banner.Clear(BannerKind.Posture);
+            Assert.Equal("camera off", CurrentMessage());
+        });
+    }
+
+    [Fact]
+    public void Clear_DropsAHeldBackBannerWhoseProblemIsAlreadyOver()
+    {
+        _wpf.Invoke(() =>
+        {
+            Banner.Show(BannerKind.Posture, "20s left", delay: Later);
+            Banner.Show(BannerKind.Covered, "covered", delay: Later);
+
+            Banner.Clear(BannerKind.Covered);       // the lens is uncovered before the warning ends
+            Banner.Clear(BannerKind.Posture);
+            Assert.Null(CurrentMessage());
+        });
+    }
+
     [Theory]
     [InlineData(BannerKind.Away, BannerKind.Covered)]
     [InlineData(BannerKind.CameraOff, BannerKind.Posture)]
@@ -86,11 +114,24 @@ public sealed class BannerServiceTests : IDisposable
         _wpf.Invoke(() =>
         {
             TimeTracker.Instance.IsWidgetOpen = true;
-            Banner.Show(BannerKind.CameraOff, "Camera is disabled");
+            Banner.Show(BannerKind.Covered, "Camera is covered");
         });
 
         Assert.Contains("Banner waiting: the widget is open (it shows after the widget is closed or collapsed)", _log.InfoLines);
         Assert.Equal(0, Count("Banner shown"));
+    }
+
+    [Fact]
+    public void Show_CameraOff_IgnoresAnOpenWidgetAndShows()
+    {
+        _wpf.Invoke(() =>
+        {
+            TimeTracker.Instance.IsWidgetOpen = true;       // the camera-off banner has the Try again button, so it must still appear
+            Banner.Show(BannerKind.CameraOff, "Camera is disabled");
+        });
+
+        Assert.Contains("Banner shown: \"Camera is disabled\"", _log.InfoLines);
+        Assert.Equal(0, Count("Banner waiting"));
     }
 
     [Fact]

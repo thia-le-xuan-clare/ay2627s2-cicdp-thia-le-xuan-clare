@@ -19,6 +19,7 @@ public partial class WidgetWindow : Window
     private WidgetMode _mode = WidgetMode.Session;
     private readonly DuckAnimator _duck = new();   // swaps the duck frames when collapsed
     private bool? _bigBeforeReminder;               // size to go back to after the idle reminder
+    private readonly string _reminderDefault;       // the reminder text written in the XAML
 
     /// <summary>The "Start session" button in reminder mode was clicked.</summary>
     public event Action? StartRequested;
@@ -26,6 +27,7 @@ public partial class WidgetWindow : Window
     public WidgetWindow()
     {
         InitializeComponent();
+        _reminderDefault = ReminderText.Text;
         DuckPanel.DataContext = _duck;
 
         _big = _lastBig ?? true;
@@ -83,6 +85,7 @@ public partial class WidgetWindow : Window
 
         if (reminder)
         {
+            ReminderText.Text = _reminderDefault;           // a fresh reminder never keeps an old message
             _bigBeforeReminder ??= _big;                    // remember the size so the next session looks like before
             if (_big) SetBig(false);                        // the reminder lives in the small form with the duck
             _duck.Force(DuckEmotion.Sad);
@@ -106,6 +109,17 @@ public partial class WidgetWindow : Window
             if (!_big) SetBig(true);                        // calibrating needs the camera visible
             _ = CameraMonitor.Instance.AcquireAsync("calibration");
         }
+    }
+
+    /// <summary>
+    /// Replaces the reminder text with a short message (for example "Checking your camera..." or why starting failed).
+    /// Pass null to put the normal reminder back. Returns false if the widget is not showing the reminder.
+    /// </summary>
+    public bool ShowReminderMessage(string? message)
+    {
+        if (_mode != WidgetMode.Reminder) return false;
+        ReminderText.Text = message ?? _reminderDefault;
+        return true;
     }
 
     // ---------------- duck ----------------
@@ -203,7 +217,9 @@ public partial class WidgetWindow : Window
     private void Window_Closed(object? sender, EventArgs e)
     {
         _duck.Stop();
-        CameraMonitor.Instance.Release("calibration");      // no-op if a session still needs the camera
+        // only give back the camera if this widget borrowed it; the calibration window holds its own
+        if (_mode == WidgetMode.Calibrate)
+            CameraMonitor.Instance.Release("calibration");
         _left = Left; _top = Top;
         if (_bigBeforeReminder is null) { _width = ActualWidth; _height = ActualHeight; }   // don't save the reminder's small size
         _lastBig = _bigBeforeReminder ?? _big;

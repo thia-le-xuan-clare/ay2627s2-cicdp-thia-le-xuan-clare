@@ -154,6 +154,7 @@ public partial class App : Application
             {
                 if (postureOverlay is null) return;
                 postureOverlay.Close();
+                OverlayState.Exit();
                 postureOverlay = null;
             }
 
@@ -164,6 +165,7 @@ public partial class App : Application
                 overlayOutcomeLogged = false;
                 banner.Show(BannerKind.Posture, PostureText((int)PostureTuning.Countdown.TotalSeconds),
                             nudge: false, duck: DuckEmotion.Angry);
+                timer.IsBadPosture = true;
                 Services.GetRequiredService<MainWindow>().SetSlouching(true);
             };
 
@@ -206,6 +208,7 @@ public partial class App : Application
                     ClosePostureOverlay();
                 };
                 postureOverlay.Show();
+                OverlayState.Enter();
             };
 
             posture.SlouchEndedWithReason += why =>
@@ -213,6 +216,7 @@ public partial class App : Application
                 banner.Clear(BannerKind.Posture);
                 ClosePostureOverlay();
                 Services.GetRequiredService<MainWindow>().SetSlouching(false);
+                timer.IsBadPosture = false;
 
                 if (activeWarningLevel == WarningLevel.Banner && bannerOutcomeLogged)
                     return;

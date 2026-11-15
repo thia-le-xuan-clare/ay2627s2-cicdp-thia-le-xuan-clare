@@ -44,7 +44,7 @@ public sealed class IdleReminder
 
         if (t.IsRunning) _first = false;                    // they have used the app: normal delay from now on
 
-        bool idle = !t.IsRunning && !t.IsWidgetOpen;
+        bool idle = !t.IsRunning && !t.IsWidgetOpen && !OverlayState.IsActive;   // never pops up over calibration / the posture overlay
         if (!idle)
         {
             _idleSince = null;                              // running or widget open: the wait starts over

@@ -26,7 +26,7 @@ public static class MonitorTuning
     /// <summary>While the camera is off, quietly try to open it again this often.</summary>
     public static readonly TimeSpan CameraRetryEvery = TimeSpan.FromSeconds(10);
     /// <summary>The "camera is off" banner only appears after the camera has been off this long (so meetings stay quiet).</summary>
-    public static readonly TimeSpan CameraOffBannerDelay = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan CameraOffBannerDelay = TimeSpan.FromSeconds(5);
     /// <summary>A dismissed banner reminds you once more after this long if you're still paused.</summary>
     public static readonly TimeSpan BannerNudge = TimeSpan.FromMinutes(10);
 }
@@ -117,6 +117,8 @@ public sealed class CameraMonitor : INotifyPropertyChanged
     public bool IsChecking { get; private set; }
     public bool HasFrame => Frame != null;
     public bool HasProblem => Problem != null;
+    /// <summary>The current problem is "lens covered" (as opposed to camera off / can't be opened).</summary>
+    public bool ProblemIsCovered => Problem == CoveredAtStartMessage || Problem == CoveredMessage;
     public bool HasHolders => _holders.Count > 0;
     public string? OverlayText => Problem ?? (HasFrame ? null : "Starting camera...");
     public bool HasOverlay => OverlayText != null;

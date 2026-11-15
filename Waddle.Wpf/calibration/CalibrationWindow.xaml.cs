@@ -25,7 +25,8 @@ public partial class CalibrationWindow : Window
 
         vm.CloseRequested += Close;
         Loaded += async (_, _) => await vm.StartAsync();
-        Closed += (_, _) => vm.Dispose();       // releases the "calibration" camera holder
+        Loaded += (_, _) => OverlayState.Enter();
+        Closed += (_, _) => { OverlayState.Exit(); vm.Dispose(); };   // Dispose releases the "calibration" camera holder
     }
 
     private void Window_KeyDown(object sender, KeyEventArgs e)

@@ -35,6 +35,7 @@ public sealed class BannerService
     private BannerWindow? _window;
     private Entry? _current;                 // the banner we want to show
     private Entry? _shown;                   // the banner currently on screen
+    private Entry? _queued;                  // a less urgent banner held back behind the current one (e.g. camera off during the posture warning)
     private bool _buttonBusy;
 
     private BannerService()
@@ -60,11 +61,10 @@ public sealed class BannerService
                      Func<Task>? onButtonAsync = null, TimeSpan? delay = null, bool nudge = true,
                      DuckEmotion? duck = null)
     {
-        if (_current != null && _current.Kind >= kind) return;
+        if (_current != null && _current.Kind == kind) return;      // this banner is already waiting
 
-        HideWindow();
         var wait = delay ?? TimeSpan.Zero;
-        _current = new Entry
+        var entry = new Entry
         {
             Kind = kind,
             Message = message,
@@ -75,6 +75,18 @@ public sealed class BannerService
             Nudge = nudge,
             Duck = duck
         };
+
+        if (_current != null && _current.Kind > kind)
+        {
+            // a more urgent banner (e.g. the posture warning) is up: keep this one and show it once that one clears,
+            // so a camera problem that starts during the warning isn't lost
+            if (_queued == null || _queued.Kind < kind) _queued = entry;
+            Log?.Info($"Banner held back until the current one clears: \"{message}\"");
+            return;
+        }
+
+        HideWindow();
+        _current = entry;
         Log?.Info(wait > TimeSpan.Zero
             ? $"Banner queued: \"{message}\" (shows in {wait.TotalSeconds:0} s)"
             : $"Banner queued: \"{message}\"");
@@ -94,13 +106,24 @@ public sealed class BannerService
     /// <summary>Removes the banner if it is of this kind (the problem is over).</summary>
     public void Clear(BannerKind kind)
     {
-        if (_current?.Kind == kind) ClearAll();
+        if (_queued?.Kind == kind) _queued = null;      // the problem it was waiting to show is already over
+        if (_current?.Kind != kind) return;
+
+        var next = _queued;                             // something was held back behind this banner: show it now
+        ClearAll();
+        if (next == null) return;
+
+        _current = next;
+        Log?.Info($"Banner released: \"{next.Message}\"");
+        _tick.Start();
+        Refresh();
     }
 
     public void ClearAll()
     {
         if (_current != null) Log?.Info("Banner cleared");
         _current = null;
+        _queued = null;
         _tick.Stop();
         HideWindow();
     }
@@ -120,7 +143,8 @@ public sealed class BannerService
         // an expanded widget shows the status itself; closed or collapsed doesn't.
         // The posture warning is the exception: the widget has no posture message, so it always shows.
         var tracker = TimeTracker.Instance;
-        if (e.Kind != BannerKind.Posture && tracker.IsWidgetOpen && !tracker.IsWidgetCollapsed)
+        if (e.Kind != BannerKind.Posture && e.Kind != BannerKind.CameraOff
+            && tracker.IsWidgetOpen && !tracker.IsWidgetCollapsed)
         {
             if (!e.LoggedWaiting)
             {
