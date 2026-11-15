@@ -72,6 +72,21 @@ public sealed class TimeTracker : INotifyPropertyChanged
     public bool IsRunning { get; private set; }
     public bool IsPaused => _reason != PauseReason.None;
 
+    private bool _badPosture;
+    /// <summary>Set by App while the person is slouching: the timer holds still and the status says so.</summary>
+    public bool IsBadPosture
+    {
+        get => _badPosture;
+        set
+        {
+            if (_badPosture == value) return;
+            if (IsRunning) Tick();              // count the time up to this moment first
+            _badPosture = value;
+            _lastTick = DateTime.Now;
+            Changed();
+        }
+    }
+
     private TimeTracker()
     {
         _timer.Tick += (_, _) => Tick();
@@ -91,7 +106,7 @@ public sealed class TimeTracker : INotifyPropertyChanged
         PauseReason.Away => "Paused: away",
         PauseReason.Covered => "Paused: camera is covered",
         PauseReason.CameraOff => "Paused: camera is off",
-        _ => "Timer running"
+        _ => _badPosture ? "Bad posture: sit up straight" : "Timer running"
     };
 
     // ---------- actions ----------
@@ -158,6 +173,7 @@ public sealed class TimeTracker : INotifyPropertyChanged
         if (!IsRunning) return;
         Tick();
         IsRunning = false;
+        _badPosture = false;
         SetReason(PauseReason.None);
         _timer.Stop();
         Save();
@@ -242,7 +258,7 @@ public sealed class TimeTracker : INotifyPropertyChanged
         _lastTick = now;
 
         // ignore gaps (laptop sleep, debugger pause) so they don't count as sitting time
-        if (!IsRunning || IsPaused || delta > TimeSpan.FromSeconds(5)) { Changed(); return; }
+        if (!IsRunning || IsPaused || _badPosture || delta > TimeSpan.FromSeconds(5)) { Changed(); return; }
 
         _session += delta;
         var day = DateOnly.FromDateTime(now);

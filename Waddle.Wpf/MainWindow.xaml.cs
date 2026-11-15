@@ -58,7 +58,14 @@ public partial class MainWindow : Window
             if (!App.EnsureCalibrated("Calibrate your face size first, then Waddle can start your timer."))
                 return;     // skipped: no camera, no timer, no widget
 
-            if (!await CameraMonitor.Instance.AcquireAsync("session")) return;   // reminder banner explains why
+            _widget?.ShowReminderMessage("Checking your camera...");     // only does anything while the reminder is showing
+            if (!await CameraMonitor.Instance.AcquireAsync("session"))
+            {
+                ShowStartFailedBanner();    // the dashboard reminder explains why; the pop-up banner says it too
+                return;
+            }
+            BannerService.Instance.Clear(BannerKind.CameraOff);     // the camera works now: drop any earlier start-failed pop-up
+            BannerService.Instance.Clear(BannerKind.Covered);
 
             if (!TimeTracker.Instance.Start())          // backstop: blocked for any other reason
             {
@@ -71,6 +78,31 @@ public partial class MainWindow : Window
         finally { _starting = false; }
     }
 
+    /// <summary>The camera check failed before the timer could start: show the pop-up banner with a Try again button.</summary>
+    private void ShowStartFailedBanner()
+    {
+        var camera = CameraMonitor.Instance;
+        if (!camera.HasProblem)             // e.g. a double click while the camera was still being checked
+        {
+            _widget?.ShowReminderMessage(null);
+            return;
+        }
+
+        // the idle reminder widget is open: say it right there instead of adding a second pop-up
+        var onWidget = camera.ProblemIsCovered
+            ? "Camera looks covered. Uncover it, then tap Start session."
+            : "Camera is off or can't be opened. Turn it on, then tap Start session.";
+        if (_widget?.ShowReminderMessage(onWidget) == true) return;
+
+        var banner = BannerService.Instance;
+        var (kind, text) = camera.ProblemIsCovered
+            ? (BannerKind.Covered, "Camera is covered")
+            : (BannerKind.CameraOff, "Camera is disabled");
+
+        banner.ClearAll();                  // a fresh banner each try, even if the last one was dismissed
+        banner.Show(kind, text, "Try again", onButtonAsync: StartSessionAsync, nudge: false);
+    }
+
     /// <summary>Called when posture goes bad / good: the widget's duck turns angry (or back).</summary>
     public void SetSlouching(bool slouching)
     {
@@ -81,7 +113,7 @@ public partial class MainWindow : Window
     /// <summary>Called by IdleReminder: pops the widget up with the "start again" message and the sad duck.</summary>
     public void ShowIdleReminder()
     {
-        if (TimeTracker.Instance.IsRunning) return;
+        if (TimeTracker.Instance.IsRunning || OverlayState.IsActive) return;
         OpenWidget(WidgetMode.Reminder);
     }
 
