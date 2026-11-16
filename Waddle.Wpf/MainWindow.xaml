@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:Waddle.Wpf"
         mc:Ignorable="d"
         Icon="pack://application:,,,/Assets/duck-icon/duck_happy.ico"
-        Title="Waddle" Width="780" Height="540" MinWidth="600" MinHeight="420"
+        Title="Waddle" Width="860" Height="540" MinWidth="780" MinHeight="420"
         Background="{StaticResource Bg}"
         FontFamily="Segoe UI Variable, Segoe UI">
 
@@ -51,10 +51,12 @@
         <Border Grid.Row="2" Style="{StaticResource Card}">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
+                <!-- Left: the time, status and buttons -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                     <TextBlock Text="Sat up today" Style="{StaticResource CardTitle}"/>
                     <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TodayText}"
@@ -71,7 +73,32 @@
                     </StackPanel>
                 </StackPanel>
 
-                <Border Grid.Column="1" Width="280" Height="210" Margin="24,0,0,0" CornerRadius="12"
+                <!-- Middle: the duck + message. Centered in the gap when the camera shows, far right when it is hidden -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,24,0">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Style.Triggers>
+                                <!-- no camera box (widget open or timer not running): duck goes to the far right -->
+                                <DataTrigger Binding="{Binding Source={x:Static local:TimeTracker.Instance}, Path=ShowDashboardControls}" Value="False">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <!-- Animated duck (frames come from DuckAnimator, set in MainWindow.xaml.cs) -->
+                    <Viewbox x:Name="DuckPanel" Height="150" HorizontalAlignment="Center">
+                        <Grid Width="240" Height="320">
+                            <Image Source="{Binding Frame}" Width="{Binding FrameWidth}" Height="{Binding FrameHeight}"
+                                   Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                        </Grid>
+                    </Viewbox>
+                    <TextBlock Text="{Binding Source={x:Static local:TimeTracker.Instance}, Path=MoodMessage}"
+                               FontSize="20" FontWeight="Bold" Foreground="{StaticResource Beak}"
+                               TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0"/>
+                </StackPanel>
+
+                <Border Grid.Column="2" Width="280" Height="210" Margin="24,0,0,0" CornerRadius="12"
                         Background="#2A2412" ClipToBounds="True" VerticalAlignment="Center"
                         Visibility="{Binding Source={x:Static local:TimeTracker.Instance}, Path=ShowDashboardControls, Converter={StaticResource BoolToVis}}">
                     <Grid>

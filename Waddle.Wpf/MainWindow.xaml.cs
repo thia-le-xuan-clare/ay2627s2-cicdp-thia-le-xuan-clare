@@ -11,15 +11,23 @@ public partial class MainWindow : Window
     private WidgetWindow? _widget;
     private bool _starting;
     private bool _slouching;                    // so a widget opened while slouching starts with the angry duck
+    private readonly DuckAnimator _duck = new();   // the animated duck next to the timer
 
     public MainWindow(MainViewModel vm)
     {
         InitializeComponent();
         DataContext = vm;
 
+        // dashboard duck: plays the animation that matches the time sat up today
+        DuckPanel.DataContext = _duck;
+        _duck.Force(TimeTracker.Instance.MoodEmotion);
+        _duck.Start();
+        TimeTracker.Instance.PropertyChanged += (_, _) => _duck.Force(TimeTracker.Instance.MoodEmotion);
+
         // closing the dashboard ends the app: save the running session, free the camera, exit
         Closed += (_, _) =>
         {
+            _duck.Stop();
             TimeTracker.Instance.Stop();
             CameraMonitor.Instance.Shutdown();
             Application.Current.Shutdown();
