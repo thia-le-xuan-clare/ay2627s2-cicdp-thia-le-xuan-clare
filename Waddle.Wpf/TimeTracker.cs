@@ -97,6 +97,28 @@ public sealed class TimeTracker : INotifyPropertyChanged
     public string TodayText => Today.TotalHours >= 1
         ? $"{(int)Today.TotalHours}h {Today.Minutes:00}m"
         : $"{Today.Minutes}m {Today.Seconds:00}s";
+    // ---------- duck mood + message (based on time sat up today) ----------
+    /// <summary>Which animation the dashboard duck plays. Slouching beats everything else.</summary>
+    public DuckEmotion MoodEmotion =>
+        _badPosture ? DuckEmotion.Angry
+        : Today.TotalSeconds < 1 ? DuckEmotion.Sad          // no time recorded yet
+        : DuckEmotion.Happy;
+
+    /// <summary>The bold encouraging line on the dashboard. Change the times and words to taste.</summary>
+    public string MoodMessage
+    {
+        get
+        {
+            if (_badPosture) return "Sit up straight, Waddle's watching!";
+            var t = Today;
+            if (t.TotalSeconds < 1) return "Waddle misses you!\nStart your timer.";
+            if (t < TimeSpan.FromMinutes(1)) return "Nice start!\nKeep it up!";
+            if (t < TimeSpan.FromMinutes(2)) return "You're on a roll.\nSit tall!";
+            if (t < TimeSpan.FromMinutes(3)) return "You are going strong!";
+            return "Over 3 minutes of great posture!";
+        }
+    }
+
     public string SessionText => _session.ToString(@"hh\:mm\:ss");
     public string TimerButtonText => IsRunning ? "Open widget" : "Start timer";
     public string PauseButtonText => IsPaused ? "Resume" : "Pause";

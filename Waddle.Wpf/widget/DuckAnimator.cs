@@ -15,7 +15,7 @@ public sealed class DuckAnimator : INotifyPropertyChanged
     private static readonly Dictionary<DuckEmotion, BitmapImage[]> Frames = new()
     {
         [DuckEmotion.Angry] = Load("angry", 1, 2),
-        [DuckEmotion.Happy] = Load("happy", 3, 4),
+        [DuckEmotion.Happy] = Load("happy-no-star", 3, 4),
         [DuckEmotion.Sad]   = Load("sad",   5, 6),
         [DuckEmotion.Sleep] = Load("sleep", 7, 8),
     };
