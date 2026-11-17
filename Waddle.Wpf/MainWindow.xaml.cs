@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using Waddle.Core;
 
 namespace Waddle.Wpf;
 
@@ -24,6 +25,9 @@ public partial class MainWindow : Window
         _duck.Start();
         TimeTracker.Instance.PropertyChanged += (_, _) => _duck.Force(TimeTracker.Instance.MoodEmotion);
 
+        // history grid, shown on the dashboard
+        HistoryPanel.DataContext = new HistoryCalendarViewModel(App.Services.GetRequiredService<IDailyTimeStore>());
+
         // closing the dashboard ends the app: save the running session, free the camera, exit
         Closed += (_, _) =>
         {
@@ -43,7 +47,7 @@ public partial class MainWindow : Window
     private void Stop_Click(object sender, RoutedEventArgs e) => TimeTracker.Instance.ConfirmAndStop();
 
     private void Calibrate_Click(object sender, RoutedEventArgs e) =>
-    App.Services.GetRequiredService<CalibrationWindow>().Show();
+        App.Services.GetRequiredService<CalibrationWindow>().Show();
 
     // "Try again" on the camera reminder
     private async void Retry_Click(object sender, RoutedEventArgs e)

@@ -34,5 +34,20 @@ public sealed class SqliteDailyTimeStore : IDailyTimeStore
         command.ExecuteNonQuery();
     }
 
+    public IReadOnlyDictionary<DateOnly, int> GetSecondsRange(DateOnly from, DateOnly to)
+    {
+        var result = new Dictionary<DateOnly, int>();
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        // yyyy-MM-dd strings sort in date order, so BETWEEN works
+        command.CommandText = "SELECT date, seconds_good FROM daily_history WHERE date BETWEEN $from AND $to;";
+        command.Parameters.AddWithValue("$from", Key(from));
+        command.Parameters.AddWithValue("$to", Key(to));
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+            result[DateOnly.ParseExact(reader.GetString(0), "yyyy-MM-dd")] = reader.GetInt32(1);
+        return result;
+    }
+
     private static string Key(DateOnly day) => day.ToString("yyyy-MM-dd");
 }

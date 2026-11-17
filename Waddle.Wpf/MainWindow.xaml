@@ -6,16 +6,64 @@
         xmlns:local="clr-namespace:Waddle.Wpf"
         mc:Ignorable="d"
         Icon="pack://application:,,,/Assets/duck-icon/duck_happy.ico"
-        Title="Waddle" Width="860" Height="540" MinWidth="780" MinHeight="420"
+        Title="Waddle" Width="1000" Height="900" MinWidth="780" MinHeight="420"
         Background="{StaticResource Bg}"
         FontFamily="Segoe UI Variable, Segoe UI">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="DayCell" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="{StaticResource H0}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="ToolTip" Value="{Binding Tooltip}"/>
+            <Setter Property="Command" Value="{Binding SelectCommand}"/>
+            <Setter Property="CommandParameter" Value="{Binding}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="6" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Level}" Value="1"><Setter Property="Background" Value="{StaticResource H1}"/></DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="2"><Setter Property="Background" Value="{StaticResource H2}"/></DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="3"><Setter Property="Background" Value="{StaticResource H3}"/></DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="4"><Setter Property="Background" Value="{StaticResource H4}"/></DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource Ink}"/></DataTrigger>
+                <DataTrigger Binding="{Binding IsBlank}" Value="True"><Setter Property="Visibility" Value="Hidden"/></DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="WeekdayLabel" TargetType="TextBlock">
+            <Setter Property="Width" Value="50"/>
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="LegendBox" TargetType="Border">
+            <Setter Property="Width" Value="14"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Margin" Value="2,0"/>
+        </Style>
     </Window.Resources>
 
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <Grid Margin="24">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -77,7 +125,9 @@
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,24,0">
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
-                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <!-- camera showing: duck sits on the left side of the gap, next to the timer -->
+                            <Setter Property="HorizontalAlignment" Value="Left"/>
+                            <Setter Property="Margin" Value="60,0,24,0"/>
                             <Style.Triggers>
                                 <!-- no camera box (widget open or timer not running): duck goes to the far right -->
                                 <DataTrigger Binding="{Binding Source={x:Static local:TimeTracker.Instance}, Path=ShowDashboardControls}" Value="False">
@@ -121,6 +171,88 @@
             </Grid>
         </Border>
 
-        <TextBlock Grid.Row="3" Text="{Binding Status}" Foreground="{StaticResource Muted}" Margin="8,4,8,0"/>
+        <!-- Row 3: left side is free for the two pie charts later, history calendar on the right -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- (pie charts go in Grid.Column="0") -->
+
+            <Border Grid.Column="1" x:Name="HistoryPanel" Style="{StaticResource Card}">
+                <StackPanel>
+                    <!-- Month pagination -->
+                    <DockPanel Margin="0,0,0,14">
+                        <Button DockPanel.Dock="Left" Content="&#xE76B;" FontFamily="Segoe MDL2 Assets"
+                                Style="{StaticResource WaddleButton}" Padding="12,8" Command="{Binding PrevMonthCommand}"/>
+                        <Button DockPanel.Dock="Right" Content="&#xE76C;" FontFamily="Segoe MDL2 Assets"
+                                Style="{StaticResource WaddleButton}" Padding="12,8" Command="{Binding NextMonthCommand}"
+                                IsEnabled="{Binding CanGoNext}"/>
+                        <TextBlock Text="{Binding MonthTitle}" Style="{StaticResource CardTitle}" Margin="24,0"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <!-- Mon to Sun across the top -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
+                        <TextBlock Text="Mon" Style="{StaticResource WeekdayLabel}"/>
+                        <TextBlock Text="Tue" Style="{StaticResource WeekdayLabel}"/>
+                        <TextBlock Text="Wed" Style="{StaticResource WeekdayLabel}"/>
+                        <TextBlock Text="Thu" Style="{StaticResource WeekdayLabel}"/>
+                        <TextBlock Text="Fri" Style="{StaticResource WeekdayLabel}"/>
+                        <TextBlock Text="Sat" Style="{StaticResource WeekdayLabel}"/>
+                        <TextBlock Text="Sun" Style="{StaticResource WeekdayLabel}"/>
+                        <Border Width="50"/>   <!-- space above the Wk labels -->
+                    </StackPanel>
+
+                    <!-- One row per week, with "Wk N" on the right -->
+                    <ItemsControl ItemsSource="{Binding Weeks}" HorizontalAlignment="Center">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <ItemsControl ItemsSource="{Binding Days}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource DayCell}">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DayNumber}" FontWeight="Bold" FontSize="14"
+                                                                   HorizontalAlignment="Center" Foreground="{StaticResource Ink}"/>
+                                                        <!-- the time, only after the day is clicked -->
+                                                        <TextBlock Text="{Binding TimeText}" FontSize="10" HorizontalAlignment="Center"
+                                                                   Foreground="{StaticResource Ink}"
+                                                                   Visibility="{Binding IsSelected, Converter={StaticResource BoolToVis}}"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{Binding Label}" Width="50" Padding="8,0,0,0" FontSize="12"
+                                               Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Legend -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                        <TextBlock Text="Less" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,0,4,0"/>
+                        <Border Style="{StaticResource LegendBox}" Background="{StaticResource H0}"/>
+                        <Border Style="{StaticResource LegendBox}" Background="{StaticResource H1}"/>
+                        <Border Style="{StaticResource LegendBox}" Background="{StaticResource H2}"/>
+                        <Border Style="{StaticResource LegendBox}" Background="{StaticResource H3}"/>
+                        <Border Style="{StaticResource LegendBox}" Background="{StaticResource H4}"/>
+                        <TextBlock Text="More" Foreground="{StaticResource Muted}" FontSize="11" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="4" Text="{Binding Status}" Foreground="{StaticResource Muted}" Margin="8,4,8,0"/>
     </Grid>
+    </ScrollViewer>
 </Window>

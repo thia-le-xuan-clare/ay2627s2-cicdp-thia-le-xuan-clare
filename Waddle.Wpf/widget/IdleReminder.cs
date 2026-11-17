@@ -13,8 +13,8 @@ public sealed class IdleReminder
 {
     public static IdleReminder Instance { get; } = new();
 
-    /// <summary>How long it must stay idle before the reminder appears again. 1 minute for testing; use 30 for real.</summary>
-    public TimeSpan Delay { get; set; } = TimeSpan.FromMinutes(1);
+    /// <summary>How long it must stay idle before the reminder appears again. 2 minute for testing; use 30 for real.</summary>
+    public TimeSpan Delay { get; set; } = TimeSpan.FromMinutes(2);
 
     /// <summary>How long after launching the app (with no session started) before the first reminder. 1 minute for testing.</summary>
     public TimeSpan StartupDelay { get; set; } = TimeSpan.FromMinutes(1);
