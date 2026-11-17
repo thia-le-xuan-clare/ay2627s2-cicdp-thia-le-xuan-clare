@@ -8,4 +8,7 @@ public interface IDailyTimeStore
 
     /// Sets the saved seconds for that day (creates the row if needed).
     void SetSeconds(DateOnly day, int seconds);
+
+    /// Seconds for every saved day between from and to (inclusive). Days with no row are left out.
+    IReadOnlyDictionary<DateOnly, int> GetSecondsRange(DateOnly from, DateOnly to);
 }
