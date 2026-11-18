@@ -51,4 +51,32 @@ public sealed class SqliteWarningEventStoreTests : IDisposable
         Assert.Equal(1, overlayRow.SatUpCount);
         Assert.Equal(1, overlayRow.HotkeyExitCount);
     }
+
+    [Fact]
+    public void GetDayStats_CountsSlouchesAndOutcomesPerLevelForThatDayOnly()
+    {
+        var day = new DateTime(2026, 11, 13, 10, 0, 0);
+        _store.Record(WarningLevel.Banner, WarningOutcome.Ignored, day);
+        _store.Record(WarningLevel.Overlay, WarningOutcome.HotkeyExit, day.AddSeconds(25));
+        _store.Record(WarningLevel.Banner, WarningOutcome.SatUp, day.AddMinutes(30));
+        _store.Record(WarningLevel.Banner, WarningOutcome.Dismissed, day.AddDays(1));   // another day
+
+        var stats = _store.GetDayStats(DateOnly.FromDateTime(day));
+
+        Assert.Equal(2, stats.SlouchCount);                 // two banners shown that day
+        Assert.Equal(1, stats.Banner.Ignored);
+        Assert.Equal(1, stats.Banner.SatUp);
+        Assert.Equal(0, stats.Banner.Dismissed);
+        Assert.Equal(1, stats.Overlay.HotkeyExit);
+    }
+
+    [Fact]
+    public void GetDayStats_ReturnsZerosWhenNothingHappened()
+    {
+        var stats = _store.GetDayStats(new DateOnly(2026, 1, 1));
+
+        Assert.Equal(0, stats.SlouchCount);
+        Assert.Equal(0, stats.Banner.Total);
+        Assert.Equal(0, stats.Overlay.Total);
+    }
 }

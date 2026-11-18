@@ -88,4 +88,38 @@ public class SqliteWarningEventStore : IWarningEventStore
 
         return results;
     }
+
+    public DayWarningStats GetDayStats(DateOnly day)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                w.level_id,
+                SUM(CASE WHEN w.outcome_id = 1 THEN 1 ELSE 0 END),
+                SUM(CASE WHEN w.outcome_id = 2 THEN 1 ELSE 0 END),
+                SUM(CASE WHEN w.outcome_id = 3 THEN 1 ELSE 0 END),
+                SUM(CASE WHEN w.outcome_id = 4 THEN 1 ELSE 0 END)
+            FROM daily_history d
+            JOIN warning_events w ON w.day_id = d.day_id
+            WHERE d.date = $date
+            GROUP BY w.level_id;
+            """;
+        command.Parameters.AddWithValue("$date", day.ToString("yyyy-MM-dd"));
+
+        var banner = new LevelOutcomeCounts(0, 0, 0, 0);
+        var overlay = new LevelOutcomeCounts(0, 0, 0, 0);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var counts = new LevelOutcomeCounts(
+                reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetInt32(4));
+            if (reader.GetInt32(0) == (int)WarningLevel.Banner) banner = counts;
+            else if (reader.GetInt32(0) == (int)WarningLevel.Overlay) overlay = counts;
+        }
+
+        // Every slouch starts with a banner, so banners shown = times slouched.
+        return new DayWarningStats(day, banner.Total, banner, overlay);
+    }
 }
