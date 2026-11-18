@@ -12,8 +12,8 @@ public static class PostureTuning
     public const double RecoverFactor = 1.08;
     /// <summary>The face must stay too big this long before we warn (so a quick lean in to read something is fine).</summary>
     public static readonly TimeSpan SlouchAfter = TimeSpan.FromSeconds(10);
-    /// <summary>The face must stay normal this long before the warning clears.</summary>
-    public static readonly TimeSpan SitUpAfter = TimeSpan.FromSeconds(1);
+    /// <summary>The face must stay normal this long before the warning clears (2s prevents walking away from counting as sitting up).</summary>
+    public static readonly TimeSpan SitUpAfter = TimeSpan.FromSeconds(2);
     /// <summary>How long the person gets to sit up once the warning shows.</summary>
     public static readonly TimeSpan Countdown = TimeSpan.FromSeconds(20);
 }
@@ -86,7 +86,15 @@ public sealed class PostureMonitor
             Log?.Info($"Posture: watching, calibrated face is {_baseline:P0} of frame");
         }
 
-        if (camera.FaceCount < 1 || camera.FaceRatio <= 0) return;  // no face this moment (away is handled by the timer)
+        if (camera.FaceCount < 1 || camera.FaceRatio <= 0)
+        {
+            // Face is gone: do NOT let a brief shrink while standing up count as "sat up".
+            // Keep the countdown running until CameraMonitor pauses the timer for Away (which logs Ignored).
+            _bigSince = null;
+            _normalSince = null;
+            if (IsSlouching) UpdateCountdown(DateTime.Now);
+            return;
+        }
 
         _smooth = _smooth == 0 ? camera.FaceRatio : _smooth * 0.7 + camera.FaceRatio * 0.3;   // smooth out frame-to-frame jitter
         double ratio = _smooth / _baseline.Value;                   // 1.0 = same as calibration

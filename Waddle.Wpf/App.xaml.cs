@@ -71,6 +71,7 @@ public partial class App : Application
             Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
             var db = new DatabaseInitializer(dbPath);
             db.Initialize();
+            db.Seed();
 
             // Dependency injection
             var sc = new ServiceCollection();

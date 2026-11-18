@@ -57,6 +57,9 @@ public sealed partial class HistoryCalendarViewModel : ObservableObject
 
     public ObservableCollection<CalendarWeek> Weeks { get; } = new();
 
+    /// <summary>Raised when a day is clicked (its date) or clicked again to hide it (null).</summary>
+    public event Action<DateOnly?>? DaySelectionChanged;
+
     [ObservableProperty] private string monthTitle = "";
     [ObservableProperty] private bool canGoNext;
 
@@ -91,6 +94,7 @@ public sealed partial class HistoryCalendarViewModel : ObservableObject
         if (_selected != null) _selected.IsSelected = false;
         day.IsSelected = !wasSelected;               // click again to hide
         _selected = day.IsSelected ? day : null;
+        DaySelectionChanged?.Invoke(_selected?.Date);
     }
 
     private void Load()
@@ -104,6 +108,7 @@ public sealed partial class HistoryCalendarViewModel : ObservableObject
         MonthTitle = _month.ToString("MMMM yyyy");
         CanGoNext = _month < new DateOnly(today.Year, today.Month, 1);
 
+        bool hadSelection = _selected != null;
         _selected = null;
         _todayCell = null;
         Weeks.Clear();
@@ -131,6 +136,8 @@ public sealed partial class HistoryCalendarViewModel : ObservableObject
             }
             Weeks.Add(week);
         }
+
+        if (hadSelection) DaySelectionChanged?.Invoke(null);   // the clicked day left the screen, so show today again
     }
 
     // keeps today's square counting up while the timer runs (called every second)

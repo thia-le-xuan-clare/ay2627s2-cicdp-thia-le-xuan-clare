@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Waddle.Core;
 
@@ -26,7 +27,16 @@ public partial class MainWindow : Window
         TimeTracker.Instance.PropertyChanged += (_, _) => _duck.Force(TimeTracker.Instance.MoodEmotion);
 
         // history grid, shown on the dashboard
-        HistoryPanel.DataContext = new HistoryCalendarViewModel(App.Services.GetRequiredService<IDailyTimeStore>());
+        var calendar = new HistoryCalendarViewModel(App.Services.GetRequiredService<IDailyTimeStore>());
+        HistoryPanel.DataContext = calendar;
+
+        // pie charts: today until a calendar day is clicked
+        var stats = new DayStatsViewModel(App.Services.GetRequiredService<IWarningEventStore>());
+        StatsPanel.DataContext = stats;
+        calendar.DaySelectionChanged += stats.ShowDay;
+        var statsTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        statsTimer.Tick += (_, _) => stats.RefreshIfToday();     // new slouches show up without clicking
+        statsTimer.Start();
 
         // closing the dashboard ends the app: save the running session, free the camera, exit
         Closed += (_, _) =>
@@ -147,5 +157,35 @@ public partial class MainWindow : Window
         }
         _widget.SetMode(mode);
         if (mode == WidgetMode.Session) _widget.SetSlouching(_slouching);
+    }
+
+    private void Row3Grid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        bool isNarrow = e.NewSize.Width < 820;
+
+        if (isNarrow)
+        {
+            // Narrow: Pie charts on top (Row 0), Calendar below (Row 1)
+            RightCol.Width = new GridLength(0);
+
+            Grid.SetRow(StatsPanel, 0);
+            Grid.SetColumn(StatsPanel, 0);
+
+            Grid.SetRow(HistoryPanel, 1);
+            Grid.SetColumn(HistoryPanel, 0);
+            HistoryPanel.HorizontalAlignment = HorizontalAlignment.Center;
+        }
+        else
+        {
+            // Wide: Stats on left (Col 0), Calendar on right (Col 1)
+            RightCol.Width = GridLength.Auto;
+
+            Grid.SetRow(StatsPanel, 0);
+            Grid.SetColumn(StatsPanel, 0);
+
+            Grid.SetRow(HistoryPanel, 0);
+            Grid.SetColumn(HistoryPanel, 1);
+            HistoryPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
+        }
     }
 }

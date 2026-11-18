@@ -45,6 +45,42 @@
             </Style.Triggers>
         </Style>
 
+        <DataTemplate x:Key="PieTemplate">
+            <StackPanel HorizontalAlignment="Center" Width="190" Margin="4,4,4,16">
+                <TextBlock Text="{Binding Title}" Style="{StaticResource CardTitle}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                <Grid Width="160" Height="160">
+                    <!-- no data: grey ring -->
+                    <Ellipse Margin="4" Fill="{StaticResource H0}" Stroke="{StaticResource Line}" StrokeThickness="1.5"
+                             Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}"/>
+                    <TextBlock Text="No warnings" Foreground="{StaticResource Muted}" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}"/>
+                    <ItemsControl ItemsSource="{Binding Slices}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><Grid/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Path Data="{Binding Shape}" Fill="{Binding Fill}" Stroke="{StaticResource Surface}"
+                                      StrokeThickness="2" ToolTip="{Binding LegendText}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+                <!-- legend with counts -->
+                <ItemsControl ItemsSource="{Binding Slices}" Margin="0,10,0,0" HorizontalAlignment="Center">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <Border Width="12" Height="12" CornerRadius="3" Background="{Binding Fill}" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding LegendText}" FontSize="12" Foreground="{StaticResource Ink}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
+
         <Style x:Key="WeekdayLabel" TargetType="TextBlock">
             <Setter Property="Width" Value="50"/>
             <Setter Property="Foreground" Value="{StaticResource Muted}"/>
@@ -171,25 +207,41 @@
             </Grid>
         </Border>
 
-        <!-- Row 3: left side is free for the two pie charts later, history calendar on the right -->
-        <Grid Grid.Row="3">
+        <!-- Row 3: Wide = Stats (Left) + Calendar (Right) | Narrow = Calendar (Top) + Stats (Bottom) -->
+        <Grid Grid.Row="3" x:Name="Row3Grid" SizeChanged="Row3Grid_SizeChanged">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="LeftCol" Width="*"/>
+                <ColumnDefinition x:Name="RightCol" Width="Auto"/>
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <!-- (pie charts go in Grid.Column="0") -->
+            <!-- Stats & Pie Charts -->
+            <Border Grid.Row="0" Grid.Column="0" x:Name="StatsPanel" Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="{Binding DateText}" Foreground="{StaticResource Muted}" FontSize="13"/>
+                    <TextBlock Text="{Binding Headline}" FontSize="26" FontWeight="ExtraBold" TextWrapping="Wrap"
+                               Foreground="{StaticResource Ink}" Margin="0,2,0,16"/>
+                    <WrapPanel HorizontalAlignment="Center">
+                        <ContentControl Content="{Binding Banner}" ContentTemplate="{StaticResource PieTemplate}"/>
+                        <ContentControl Content="{Binding Overlay}" ContentTemplate="{StaticResource PieTemplate}"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
 
-            <Border Grid.Column="1" x:Name="HistoryPanel" Style="{StaticResource Card}">
+            <!-- Smaller History Calendar -->
+            <Border Grid.Row="0" Grid.Column="1" x:Name="HistoryPanel" Style="{StaticResource Card}" VerticalAlignment="Top">
                 <StackPanel>
                     <!-- Month pagination -->
-                    <DockPanel Margin="0,0,0,14">
+                    <DockPanel Margin="0,0,0,10">
                         <Button DockPanel.Dock="Left" Content="&#xE76B;" FontFamily="Segoe MDL2 Assets"
-                                Style="{StaticResource WaddleButton}" Padding="12,8" Command="{Binding PrevMonthCommand}"/>
+                                Style="{StaticResource WaddleButton}" Padding="10,6" Command="{Binding PrevMonthCommand}"/>
                         <Button DockPanel.Dock="Right" Content="&#xE76C;" FontFamily="Segoe MDL2 Assets"
-                                Style="{StaticResource WaddleButton}" Padding="12,8" Command="{Binding NextMonthCommand}"
+                                Style="{StaticResource WaddleButton}" Padding="10,6" Command="{Binding NextMonthCommand}"
                                 IsEnabled="{Binding CanGoNext}"/>
-                        <TextBlock Text="{Binding MonthTitle}" Style="{StaticResource CardTitle}" Margin="24,0"
+                        <TextBlock Text="{Binding MonthTitle}" Style="{StaticResource CardTitle}" FontSize="15" Margin="12,0"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </DockPanel>
 
@@ -202,10 +254,10 @@
                         <TextBlock Text="Fri" Style="{StaticResource WeekdayLabel}"/>
                         <TextBlock Text="Sat" Style="{StaticResource WeekdayLabel}"/>
                         <TextBlock Text="Sun" Style="{StaticResource WeekdayLabel}"/>
-                        <Border Width="50"/>   <!-- space above the Wk labels -->
+                        <Border Width="42"/>
                     </StackPanel>
 
-                    <!-- One row per week, with "Wk N" on the right -->
+                    <!-- Weeks -->
                     <ItemsControl ItemsSource="{Binding Weeks}" HorizontalAlignment="Center">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -220,10 +272,9 @@
                                             <DataTemplate>
                                                 <Button Style="{StaticResource DayCell}">
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding DayNumber}" FontWeight="Bold" FontSize="14"
+                                                        <TextBlock Text="{Binding DayNumber}" FontWeight="Bold" FontSize="12"
                                                                    HorizontalAlignment="Center" Foreground="{StaticResource Ink}"/>
-                                                        <!-- the time, only after the day is clicked -->
-                                                        <TextBlock Text="{Binding TimeText}" FontSize="10" HorizontalAlignment="Center"
+                                                        <TextBlock Text="{Binding TimeText}" FontSize="8.5" HorizontalAlignment="Center"
                                                                    Foreground="{StaticResource Ink}"
                                                                    Visibility="{Binding IsSelected, Converter={StaticResource BoolToVis}}"/>
                                                     </StackPanel>
@@ -231,7 +282,7 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <TextBlock Text="{Binding Label}" Width="50" Padding="8,0,0,0" FontSize="12"
+                                    <TextBlock Text="{Binding Label}" Width="42" Padding="6,0,0,0" FontSize="11"
                                                Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </DataTemplate>
@@ -239,7 +290,7 @@
                     </ItemsControl>
 
                     <!-- Legend -->
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
                         <TextBlock Text="Less" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,0,4,0"/>
                         <Border Style="{StaticResource LegendBox}" Background="{StaticResource H0}"/>
                         <Border Style="{StaticResource LegendBox}" Background="{StaticResource H1}"/>

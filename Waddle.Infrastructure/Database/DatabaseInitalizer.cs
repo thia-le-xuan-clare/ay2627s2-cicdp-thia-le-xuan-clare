@@ -30,6 +30,7 @@ public class DatabaseInitializer
     }
 
     /// Safe to call every time the app starts: it only creates what is missing.
+        /// Safe to call every time the app starts: it only creates what is missing.
     public void Initialize()
     {
         using var connection = OpenConnection();
@@ -62,9 +63,9 @@ public class DatabaseInitializer
             );
 
             CREATE TABLE IF NOT EXISTS settings (
-            settings_key  INTEGER PRIMARY KEY,
-            face_value    REAL NOT NULL CHECK (face_value > 0 AND face_value <= 1),
-            calibrated_at TEXT NOT NULL
+                settings_key  INTEGER PRIMARY KEY,
+                face_value    REAL NOT NULL CHECK (face_value > 0 AND face_value <= 1),
+                calibrated_at TEXT NOT NULL
             );
 
             -- Fixed values the app needs
@@ -75,6 +76,34 @@ public class DatabaseInitializer
             INSERT OR IGNORE INTO warning_outcome (outcome_id, outcome_name)
                 VALUES (1, 'SatUp'), (2, 'HotkeyExit'), (3, 'Ignored'), (4, 'Dismissed');
             """;
+        command.ExecuteNonQuery();
+    }
+
+    /// Loads demo/seed data. Call this from App.xaml.cs on app startup, not in unit tests.
+    public void Seed()
+    {
+        var seedPath = Path.Combine(AppContext.BaseDirectory, "Database", "seed_oct_2026.sql");
+        if (!File.Exists(seedPath))
+        {
+            throw new FileNotFoundException($"Seed file not found at: {seedPath}");
+        }
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = File.ReadAllText(seedPath);
+        command.ExecuteNonQuery();
+    }
+
+    private void SeedData(SqliteConnection connection)
+    {
+        var seedPath = Path.Combine(AppContext.BaseDirectory, "Database", "seed_oct_2026.sql");
+        if (!File.Exists(seedPath))
+        {
+            throw new FileNotFoundException($"Seed file not found at: {seedPath}");
+        }
+
+        using var command = connection.CreateCommand();
+        command.CommandText = File.ReadAllText(seedPath);
         command.ExecuteNonQuery();
     }
 }

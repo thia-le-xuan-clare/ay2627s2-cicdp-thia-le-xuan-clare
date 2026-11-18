@@ -302,4 +302,17 @@ public class HistoryCalendarViewModelTests
 
         Assert.All(vm.Weeks.SelectMany(w => w.Days).Where(d => !d.IsBlank), d => Assert.Equal(0, d.Seconds));
     }
+
+    [Fact]
+    public void Clicking_a_day_raises_DaySelectionChanged_with_its_date_and_clicking_again_raises_null()
+    {
+        var vm = Make();
+        var raised = new List<DateOnly?>();
+        vm.DaySelectionChanged += raised.Add;
+
+        vm.SelectDayCommand.Execute(Day(vm, 5));
+        vm.SelectDayCommand.Execute(Day(vm, 5));
+
+        Assert.Equal(new DateOnly?[] { new DateOnly(2026, 11, 5), null }, raised);
+    }
 }
