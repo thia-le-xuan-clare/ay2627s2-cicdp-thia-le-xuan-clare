@@ -17,17 +17,23 @@
         <StackPanel>
             <TextBlock Text="Welcome to Waddle!" FontSize="22" FontWeight="Bold"
                        Foreground="{StaticResource Beak}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-            <TextBlock Text="Do you want Waddle to start when you log in?" FontSize="22" FontWeight="ExtraBold"
+            <TextBlock Text="How should Waddle start?" FontSize="22" FontWeight="ExtraBold"
                        Foreground="{StaticResource Ink}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,8"/>
-            <TextBlock Text="You can change this any time from Settings on the dashboard."
+            <TextBlock Text="You can change these any time from Settings on the dashboard."
                        Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"/>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,24,0,0">
-                <Button x:Name="NoButton" Content="No thanks" Style="{StaticResource WaddleButton}" MinWidth="130"
-                        Margin="0,0,12,0" Click="No_Click"/>
-                <Button x:Name="YesButton" Content="Yes, start on login" Style="{StaticResource PrimaryButton}" MinWidth="170"
-                        Click="Yes_Click"/>
-            </StackPanel>
+            <CheckBox x:Name="StartupCheck" Content="Launch Waddle when I sign in to Windows" Margin="0,24,0,0" HorizontalAlignment="Center"
+                      Foreground="{StaticResource Ink}" FontSize="14" VerticalContentAlignment="Center"/>
+            <TextBlock Text="Automatically opens Waddle when your computer starts."
+                       Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+
+            <CheckBox x:Name="AutoTimerCheck" Content="Start posture timer automatically on launch" Margin="0,16,0,0" HorizontalAlignment="Center"
+                      Foreground="{StaticResource Ink}" FontSize="14" VerticalContentAlignment="Center"/>
+            <TextBlock Text="Begins camera tracking immediately whenever Waddle opens."
+                       Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+
+            <Button x:Name="ContinueButton" Content="Continue" Style="{StaticResource PrimaryButton}" MinWidth="170"
+                    HorizontalAlignment="Center" Margin="0,26,0,0" IsDefault="True" Click="Continue_Click"/>
         </StackPanel>
     </Border>
 </Window>

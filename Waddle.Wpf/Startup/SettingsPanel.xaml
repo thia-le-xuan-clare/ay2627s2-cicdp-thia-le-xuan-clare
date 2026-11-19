@@ -1,0 +1,29 @@
+<UserControl x:Class="Waddle.Wpf.SettingsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI Variable, Segoe UI">
+
+    <Border Style="{StaticResource Card}" Margin="0">
+        <StackPanel>
+            <TextBlock Text="Settings" Style="{StaticResource CardTitle}" FontSize="22" FontWeight="ExtraBold"/>
+
+            <CheckBox x:Name="StartupCheck" Checked="StartupCheck_Changed" Unchecked="StartupCheck_Changed"
+                      Content="Launch Waddle when I sign in to Windows"
+                      Foreground="{StaticResource Ink}" FontSize="14" VerticalContentAlignment="Center"/>
+            <TextBlock Text="Automatically opens Waddle when your computer starts."
+                       Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="24,2,0,0"/>
+
+            <CheckBox x:Name="AutoTimerCheck" Checked="AutoTimerCheck_Changed" Unchecked="AutoTimerCheck_Changed"
+                      Content="Start posture timer automatically on launch"
+                      Foreground="{StaticResource Ink}" FontSize="14" VerticalContentAlignment="Center" Margin="0,16,0,0"/>
+            <TextBlock Text="Begins camera tracking immediately whenever Waddle opens."
+                       Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="24,2,0,0"/>
+
+            <TextBlock x:Name="ErrorText" Foreground="{StaticResource Bad}" FontSize="12" TextWrapping="Wrap"
+                       Margin="0,12,0,0" Visibility="Collapsed"/>
+
+            <Button x:Name="DoneButton" Content="Done" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
+                    Margin="0,22,0,0" IsDefault="True" Click="Done_Click"/>
+        </StackPanel>
+    </Border>
+</UserControl>

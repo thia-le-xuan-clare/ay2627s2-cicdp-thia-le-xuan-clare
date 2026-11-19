@@ -1,42 +1,33 @@
 using System.Windows;
+using System.Windows.Input;
 
 namespace Waddle.Wpf;
 
-/// <summary>Small settings dialog opened from the dashboard.</summary>
+/// <summary>
+/// Full-screen frosted overlay with the settings card in the middle, the same look as the calibration overlay.
+/// It covers the work area (not the taskbar), so the floating widget and everything else sits under it.
+/// Open it with Show(), not ShowDialog(): a modal dialog locks every other window in the app.
+/// </summary>
 public partial class SettingsWindow : Window
 {
-    private bool _ignoreChanges;     // true while we set the box ourselves, so that doesn't count as the user changing it
+  public SettingsWindow()
+  {
+    InitializeComponent();
 
-    public SettingsWindow()
-    {
-        InitializeComponent();
-        SetBox(StartupManager.IsEnabled());
-    }
+    var area = SystemParameters.WorkArea;
+    Left = area.Left;
+    Top = area.Top;
+    Width = area.Width;
+    Height = area.Height;
 
-    private void SetBox(bool isChecked)
-    {
-        _ignoreChanges = true;
-        StartupCheck.IsChecked = isChecked;
-        _ignoreChanges = false;
-    }
+    Loaded += (_, _) => { OverlayState.Enter(); SettingsCard.FocusFirst(); };
+    Closed += (_, _) => OverlayState.Exit();
+  }
 
-    // Fires for a mouse click, the keyboard, and a screen reader's Toggle: anything that changes the box.
-    private void StartupCheck_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_ignoreChanges) return;
+  private void SettingsCard_CloseRequested() => Close();
 
-        var want = StartupCheck.IsChecked == true;
-        if (StartupManager.Set(want))
-        {
-            ErrorText.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        // Windows refused (e.g. blocked by policy): put the box back and say so
-        SetBox(!want);
-        ErrorText.Text = "Couldn't change this setting. Windows may be blocking it on this PC.";
-        ErrorText.Visibility = Visibility.Visible;
-    }
-
-    private void Done_Click(object sender, RoutedEventArgs e) => Close();
+  private void Window_KeyDown(object sender, KeyEventArgs e)
+  {
+    if (e.Key == Key.Escape) Close();
+  }
 }

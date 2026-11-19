@@ -1,7 +1,7 @@
-﻿namespace Waddle.Core;
+namespace Waddle.Core;
 
 public interface ILogService
 {
-    void Info(string message);
-    void Security(string message);
+  void Info(string message);
+  void Security(string message);
 }

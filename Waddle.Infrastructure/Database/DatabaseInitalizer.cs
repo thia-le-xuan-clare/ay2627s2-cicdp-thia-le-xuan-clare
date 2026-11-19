@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;
 
 namespace Waddle.Infrastructure.Data;
 
@@ -6,36 +6,36 @@ namespace Waddle.Infrastructure.Data;
 /// Needs the Microsoft.Data.Sqlite package in Waddle.Infrastructure.
 public class DatabaseInitializer
 {
-    private readonly string _connectionString;
+  private readonly string _connectionString;
 
-    // databasePath example (an app data folder, not the project or OneDrive folder):
-    //   Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Waddle", "waddle.db")
-    // Make sure the "Waddle" folder exists first with Directory.CreateDirectory.
-    public DatabaseInitializer(string databasePath)
-    {
-        _connectionString = $"Data Source={databasePath}";
-    }
+  // databasePath example (an app data folder, not the project or OneDrive folder):
+  //   Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Waddle", "waddle.db")
+  // Make sure the "Waddle" folder exists first with Directory.CreateDirectory.
+  public DatabaseInitializer(string databasePath)
+  {
+    _connectionString = $"Data Source={databasePath}";
+  }
 
-    public SqliteConnection OpenConnection()
-    {
-        var connection = new SqliteConnection(_connectionString);
-        connection.Open();
+  public SqliteConnection OpenConnection()
+  {
+    var connection = new SqliteConnection(_connectionString);
+    connection.Open();
 
-        // SQLite only checks foreign keys if this is switched on for every connection.
-        using var pragma = connection.CreateCommand();
-        pragma.CommandText = "PRAGMA foreign_keys = ON;";
-        pragma.ExecuteNonQuery();
+    // SQLite only checks foreign keys if this is switched on for every connection.
+    using var pragma = connection.CreateCommand();
+    pragma.CommandText = "PRAGMA foreign_keys = ON;";
+    pragma.ExecuteNonQuery();
 
-        return connection;
-    }
+    return connection;
+  }
 
-    /// Safe to call every time the app starts: it only creates what is missing.
-        /// Safe to call every time the app starts: it only creates what is missing.
-    public void Initialize()
-    {
-        using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
+  /// Safe to call every time the app starts: it only creates what is missing.
+  /// Safe to call every time the app starts: it only creates what is missing.
+  public void Initialize()
+  {
+    using var connection = OpenConnection();
+    using var command = connection.CreateCommand();
+    command.CommandText = """
             -- GLOB is pattern checking to see if the date is YYYY-MM-DD for easy showing in history
             CREATE TABLE IF NOT EXISTS daily_history (
                 day_id       INTEGER PRIMARY KEY,
@@ -76,34 +76,34 @@ public class DatabaseInitializer
             INSERT OR IGNORE INTO warning_outcome (outcome_id, outcome_name)
                 VALUES (1, 'SatUp'), (2, 'HotkeyExit'), (3, 'Ignored'), (4, 'Dismissed');
             """;
-        command.ExecuteNonQuery();
-    }
+    command.ExecuteNonQuery();
+  }
 
-    /// Loads demo/seed data. Call this from App.xaml.cs on app startup, not in unit tests.
-    public void Seed()
+  /// Loads demo/seed data. Call this from App.xaml.cs on app startup, not in unit tests.
+  public void Seed()
+  {
+    var seedPath = Path.Combine(AppContext.BaseDirectory, "Database", "seed_oct_2026.sql");
+    if (!File.Exists(seedPath))
     {
-        var seedPath = Path.Combine(AppContext.BaseDirectory, "Database", "seed_oct_2026.sql");
-        if (!File.Exists(seedPath))
-        {
-            throw new FileNotFoundException($"Seed file not found at: {seedPath}");
-        }
-
-        using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = File.ReadAllText(seedPath);
-        command.ExecuteNonQuery();
+      throw new FileNotFoundException($"Seed file not found at: {seedPath}");
     }
 
-    private void SeedData(SqliteConnection connection)
+    using var connection = OpenConnection();
+    using var command = connection.CreateCommand();
+    command.CommandText = File.ReadAllText(seedPath);
+    command.ExecuteNonQuery();
+  }
+
+  private void SeedData(SqliteConnection connection)
+  {
+    var seedPath = Path.Combine(AppContext.BaseDirectory, "Database", "seed_oct_2026.sql");
+    if (!File.Exists(seedPath))
     {
-        var seedPath = Path.Combine(AppContext.BaseDirectory, "Database", "seed_oct_2026.sql");
-        if (!File.Exists(seedPath))
-        {
-            throw new FileNotFoundException($"Seed file not found at: {seedPath}");
-        }
-
-        using var command = connection.CreateCommand();
-        command.CommandText = File.ReadAllText(seedPath);
-        command.ExecuteNonQuery();
+      throw new FileNotFoundException($"Seed file not found at: {seedPath}");
     }
+
+    using var command = connection.CreateCommand();
+    command.CommandText = File.ReadAllText(seedPath);
+    command.ExecuteNonQuery();
+  }
 }

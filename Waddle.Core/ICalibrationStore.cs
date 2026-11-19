@@ -5,7 +5,7 @@ public sealed record CalibrationData(double FaceRatio, DateTime CalibratedAt);
 
 public interface ICalibrationStore
 {
-    /// <summary>Null when the user has never calibrated.</summary>
-    CalibrationData? Load();
-    void Save(CalibrationData data);
+  /// <summary>Null when the user has never calibrated.</summary>
+  CalibrationData? Load();
+  void Save(CalibrationData data);
 }
