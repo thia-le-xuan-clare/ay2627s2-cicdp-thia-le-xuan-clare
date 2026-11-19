@@ -41,6 +41,14 @@ public class OpenCvCameraServiceTests
 
     Assert.True(failedSignal.Wait(TimeSpan.FromSeconds(3)), "Expected Failed event to fire within 3 seconds.");
     Assert.Contains("Face model not found", receivedError);
+
+    // Wait briefly for the background worker thread to finish exiting after firing Failed
+    var deadline = DateTime.UtcNow.AddSeconds(2);
+    while (service.IsRunning && DateTime.UtcNow < deadline)
+    {
+      Thread.Sleep(10);
+    }
+
     Assert.False(service.IsRunning);
   }
 
