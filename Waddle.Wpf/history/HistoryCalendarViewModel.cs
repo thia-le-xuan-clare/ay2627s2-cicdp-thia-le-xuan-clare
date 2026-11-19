@@ -97,6 +97,16 @@ public sealed partial class HistoryCalendarViewModel : ObservableObject
         DaySelectionChanged?.Invoke(_selected?.Date);
     }
 
+    /// <summary>
+    /// Clicks today's square for the user (it shows its time and the stats switch to today).
+    /// Does nothing if today is not on screen, and keeps it selected if it already is.
+    /// </summary>
+    public void SelectToday()
+    {
+        if (_todayCell is null || _todayCell.IsSelected) return;
+        SelectDay(_todayCell);
+    }
+
     private void Load()
     {
         var today = _clock();

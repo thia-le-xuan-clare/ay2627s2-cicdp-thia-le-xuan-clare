@@ -34,6 +34,16 @@ public partial class MainWindow : Window
         var stats = new DayStatsViewModel(App.Services.GetRequiredService<IWarningEventStore>());
         StatsPanel.DataContext = stats;
         calendar.DaySelectionChanged += stats.ShowDay;
+
+        // start with today's square already picked: done once the window has loaded, so the squares exist on screen
+        RoutedEventHandler? pickToday = null;
+        pickToday = (_, _) =>
+        {
+            Loaded -= pickToday;
+            calendar.SelectToday();
+        };
+        Loaded += pickToday;
+
         var statsTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         statsTimer.Tick += (_, _) => stats.RefreshIfToday();     // new slouches show up without clicking
         statsTimer.Start();
@@ -55,6 +65,9 @@ public partial class MainWindow : Window
 
     private void Pause_Click(object sender, RoutedEventArgs e) => TimeTracker.Instance.TogglePause();
     private void Stop_Click(object sender, RoutedEventArgs e) => TimeTracker.Instance.ConfirmAndStop();
+
+    private void Settings_Click(object sender, RoutedEventArgs e) =>
+        new SettingsWindow { Owner = this }.ShowDialog();
 
     private void Calibrate_Click(object sender, RoutedEventArgs e) =>
         App.Services.GetRequiredService<CalibrationWindow>().Show();

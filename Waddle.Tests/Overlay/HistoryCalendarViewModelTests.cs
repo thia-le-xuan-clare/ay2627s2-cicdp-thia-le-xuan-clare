@@ -315,4 +315,99 @@ public class HistoryCalendarViewModelTests
 
         Assert.Equal(new DateOnly?[] { new DateOnly(2026, 11, 5), null }, raised);
     }
+
+    // ---- SelectToday: the dashboard starts with today's square already clicked ----
+
+    [Fact]
+    public void SelectToday_selects_todays_square_and_raises_DaySelectionChanged_with_today()
+    {
+        var vm = MakeCurrent(new FakeDailyTimeStore(), () => 0);
+        var raised = new List<DateOnly?>();
+        vm.DaySelectionChanged += raised.Add;
+
+        vm.SelectToday();
+
+        Assert.True(Day(vm, 17).IsSelected);
+        Assert.Equal(new DateOnly?[] { FakeToday }, raised);
+    }
+
+    [Fact]
+    public void SelectToday_leaves_every_other_day_unselected()
+    {
+        var vm = MakeCurrent(new FakeDailyTimeStore(), () => 0);
+
+        vm.SelectToday();
+
+        var selected = vm.Weeks.SelectMany(w => w.Days).Where(d => d.IsSelected).ToList();
+        Assert.Single(selected);
+        Assert.Equal(FakeToday, selected[0].Date);
+    }
+
+    [Fact]
+    public void SelectToday_called_twice_keeps_today_selected_and_only_raises_once()
+    {
+        var vm = MakeCurrent(new FakeDailyTimeStore(), () => 0);
+        var raised = new List<DateOnly?>();
+        vm.DaySelectionChanged += raised.Add;
+
+        vm.SelectToday();
+        vm.SelectToday();
+
+        Assert.True(Day(vm, 17).IsSelected);
+        Assert.Single(raised);
+    }
+
+    [Fact]
+    public void SelectToday_moves_the_selection_when_another_day_was_clicked()
+    {
+        var vm = MakeCurrent(new FakeDailyTimeStore(), () => 0);
+        var raised = new List<DateOnly?>();
+        vm.DaySelectionChanged += raised.Add;
+        vm.SelectDayCommand.Execute(Day(vm, 5));
+
+        vm.SelectToday();
+
+        Assert.False(Day(vm, 5).IsSelected);
+        Assert.True(Day(vm, 17).IsSelected);
+        Assert.Equal(new DateOnly?[] { new DateOnly(2026, 11, 5), FakeToday }, raised);
+    }
+
+    [Fact]
+    public void SelectToday_does_nothing_when_a_past_month_is_showing()
+    {
+        var vm = MakeCurrent(new FakeDailyTimeStore(), () => 0);
+        vm.PrevMonthCommand.Execute(null);
+        var raised = new List<DateOnly?>();
+        vm.DaySelectionChanged += raised.Add;
+
+        vm.SelectToday();
+
+        Assert.Empty(raised);
+        Assert.DoesNotContain(vm.Weeks.SelectMany(w => w.Days), d => d.IsSelected);
+    }
+
+    [Fact]
+    public void Clicking_todays_square_after_SelectToday_hides_it_again()
+    {
+        var vm = MakeCurrent(new FakeDailyTimeStore(), () => 0);
+        var raised = new List<DateOnly?>();
+        vm.DaySelectionChanged += raised.Add;
+        vm.SelectToday();
+
+        vm.SelectDayCommand.Execute(Day(vm, 17));
+
+        Assert.False(Day(vm, 17).IsSelected);
+        Assert.Equal(new DateOnly?[] { FakeToday, null }, raised);
+    }
+
+    [Fact]
+    public void Selected_today_shows_its_live_time()
+    {
+        var vm = MakeCurrent(new FakeDailyTimeStore(), () => 3660);
+
+        vm.SelectToday();
+
+        Assert.True(Day(vm, 17).IsSelected);
+        Assert.Equal("1h 01m", Day(vm, 17).TimeText);
+    }
 }
