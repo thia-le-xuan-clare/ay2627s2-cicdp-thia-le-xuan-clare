@@ -66,8 +66,10 @@ public partial class App : Application
             _tray.ContextMenu = menu;
 
             // Database setup
-            var dbPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Waddle", "waddle.db");
+            // WADDLE_DB_PATH lets the UI tests run against a throwaway database instead of the user's real one
+            var dbPath = Environment.GetEnvironmentVariable("WADDLE_DB_PATH")
+                ?? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Waddle", "waddle.db");
             Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
             var db = new DatabaseInitializer(dbPath);
             db.Initialize();
@@ -234,6 +236,10 @@ public partial class App : Application
             timer.SessionEnded += idle.Arm;
             idle.Due += () => Services.GetRequiredService<MainWindow>().ShowIdleReminder();
             timer.RetryCameraRequested += async () => await camera.RetryAsync();
+
+            // First run only: ask whether Waddle should start when the user logs in
+            if (!StartupManager.HasBeenAsked())
+                new StartupPromptWindow().ShowDialog();
 
             if (!EnsureCalibrated()) log.Info("Calibration skipped on first run");
 

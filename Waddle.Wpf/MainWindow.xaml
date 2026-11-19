@@ -110,6 +110,8 @@
             <TextBlock Text="Waddle" FontSize="34" FontWeight="ExtraBold"
                        Foreground="{StaticResource Ink}" DockPanel.Dock="Left"/>
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button Content="Settings" Click="Settings_Click"
+                        Style="{StaticResource WaddleButton}" Margin="0,0,10,0"/>
                 <Button Content="Calibrate face size" Click="Calibrate_Click"
                         Style="{StaticResource WaddleButton}" Margin="0,0,10,0"/>
                 <Button Content="{Binding Source={x:Static local:TimeTracker.Instance}, Path=TimerButtonText}"

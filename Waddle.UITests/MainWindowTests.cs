@@ -6,16 +6,23 @@ using FlaUI.Core.Definitions;
 using FlaUI.Core.Tools;
 using FlaUI.UIA3;
 using Microsoft.Data.Sqlite;
+using Microsoft.Win32;
 using Waddle.Infrastructure.Data;
 
 namespace Waddle.UITests
 {
-    public class WaddleAppTests : IDisposable
+    public partial class WaddleAppTests : IDisposable
     {
         private Application? _app;
         private UIA3Automation? _automation;
         private readonly string _dbPath;
+        private readonly string _testDataDir;
         private readonly string _exePath;
+
+        // The app reads these two env vars (see StartupManager) so the tests never touch the real
+        // "start with Windows" entry or the real first-run marker.
+        private const string UiTestRunKey = @"Software\WaddleUITests\Run";
+        private readonly string _askedFlagPath;
 
         public WaddleAppTests()
         {
@@ -37,13 +44,19 @@ namespace Waddle.UITests
 
             SqliteConnection.ClearAllPools();
 
-            var appDataDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Waddle");
-            Directory.CreateDirectory(appDataDir);
-            _dbPath = Path.Combine(appDataDir, "waddle.db");
+            // A throwaway database in the temp folder: the tests must NEVER touch the real one in %LocalAppData%\Waddle.
+            _testDataDir = Path.Combine(Path.GetTempPath(), $"waddle-uitest-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(_testDataDir);
+            _dbPath = Path.Combine(_testDataDir, "waddle.db");
+            Environment.SetEnvironmentVariable("WADDLE_DB_PATH", _dbPath);
 
-            DeleteDatabaseFiles(_dbPath);
+            // By default the first-run "start with Windows?" question counts as already answered,
+            // so every test below sees the same screens as before. The startup tests delete this file.
+            _askedFlagPath = Path.Combine(Path.GetTempPath(), $"waddle-uitest-{Guid.NewGuid():N}.asked");
+            File.WriteAllText(_askedFlagPath, "1");
+            Environment.SetEnvironmentVariable("WADDLE_STARTUP_RUN_KEY", UiTestRunKey);
+            Environment.SetEnvironmentVariable("WADDLE_STARTUP_ASKED_FLAG", _askedFlagPath);
+            Registry.CurrentUser.DeleteSubKeyTree(@"Software\WaddleUITests", throwOnMissingSubKey: false);
 
             var baseDir = AppContext.BaseDirectory;
             _exePath = Path.GetFullPath(Path.Combine(
@@ -297,6 +310,13 @@ namespace Waddle.UITests
                 _app.Dispose();
             }
             SqliteConnection.ClearAllPools();
+
+            Registry.CurrentUser.DeleteSubKeyTree(@"Software\WaddleUITests", throwOnMissingSubKey: false);
+            if (File.Exists(_askedFlagPath)) File.Delete(_askedFlagPath);
+            Environment.SetEnvironmentVariable("WADDLE_STARTUP_RUN_KEY", null);
+            Environment.SetEnvironmentVariable("WADDLE_STARTUP_ASKED_FLAG", null);
+            Environment.SetEnvironmentVariable("WADDLE_DB_PATH", null);
+            try { Directory.Delete(_testDataDir, recursive: true); } catch { /* temp folder, fine if a file is still locked */ }
         }
     }
 }
