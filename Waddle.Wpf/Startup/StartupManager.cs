@@ -5,67 +5,98 @@ namespace Waddle.Wpf;
 
 /// <summary>
 /// Registers/unregisters Waddle to launch when the current user logs in to Windows
-/// (HKCU Run key, so no admin rights needed), and remembers whether we've asked yet.
+/// (HKCU Run key, so no admin rights needed), remembers whether we've asked yet, and remembers whether
+/// the posture timer should start by itself each time Waddle opens.
 /// </summary>
 public static class StartupManager
 {
-    public const string RunValueName = "Waddle";
+  public const string RunValueName = "Waddle";
 
-    /// <summary>
-    /// Registry key (under HKCU) that holds the start-on-login entry. Tests point this at a throwaway key,
-    /// either by setting it or with the WADDLE_STARTUP_RUN_KEY environment variable (for the UI tests, which launch the real exe).
-    /// </summary>
-    public static string RunKeyPath { get; set; } =
-        Environment.GetEnvironmentVariable("WADDLE_STARTUP_RUN_KEY")
-        ?? @"Software\Microsoft\Windows\CurrentVersion\Run";
+  /// <summary>
+  /// Registry key (under HKCU) that holds the start-on-login entry. Tests point this at a throwaway key,
+  /// either by setting it or with the WADDLE_STARTUP_RUN_KEY environment variable (for the UI tests, which launch the real exe).
+  /// </summary>
+  public static string RunKeyPath { get; set; } =
+      Environment.GetEnvironmentVariable("WADDLE_STARTUP_RUN_KEY")
+      ?? @"Software\Microsoft\Windows\CurrentVersion\Run";
 
-    /// <summary>Marker file that says the first-run question was shown. Overridable for tests (env var WADDLE_STARTUP_ASKED_FLAG).</summary>
-    public static string AskedFlagPath { get; set; } =
-        Environment.GetEnvironmentVariable("WADDLE_STARTUP_ASKED_FLAG")
-        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Waddle", ".startup-asked");
+  /// <summary>Marker file that says the first-run question was shown. Overridable for tests (env var WADDLE_STARTUP_ASKED_FLAG).</summary>
+  public static string AskedFlagPath { get; set; } =
+      Environment.GetEnvironmentVariable("WADDLE_STARTUP_ASKED_FLAG")
+      ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Waddle", ".startup-asked");
 
-    public static bool IsEnabled()
+  /// <summary>
+  /// Marker file: when it exists, the posture timer starts by itself every time Waddle opens.
+  /// Overridable for tests (env var WADDLE_AUTOSTART_TIMER_FLAG).
+  /// </summary>
+  public static string AutoStartTimerFlagPath { get; set; } =
+      Environment.GetEnvironmentVariable("WADDLE_AUTOSTART_TIMER_FLAG")
+      ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Waddle", ".autostart-timer");
+
+  public static bool IsEnabled()
+  {
+    try
     {
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-            return key?.GetValue(RunValueName) is string;
-        }
-        catch { return false; }
+      using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
+      return key?.GetValue(RunValueName) is string;
     }
+    catch { return false; }
+  }
 
-    /// <summary>Turns "start with Windows" on or off. Returns false if Windows refused (e.g. locked down by policy).</summary>
-    public static bool Set(bool enabled)
+  /// <summary>Turns "start with Windows" on or off. Returns false if Windows refused (e.g. locked down by policy).</summary>
+  public static bool Set(bool enabled)
+  {
+    try
     {
-        try
-        {
-            if (enabled)
-            {
-                var exe = Environment.ProcessPath;
-                if (exe is null) return false;
-                using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
-                key.SetValue(RunValueName, $"\"{exe}\"");
-            }
-            else
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
-                key?.DeleteValue(RunValueName, throwOnMissingValue: false);
-            }
-            return true;
-        }
-        catch { return false; }
+      if (enabled)
+      {
+        var exe = Environment.ProcessPath;
+        if (exe is null) return false;
+        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
+        key.SetValue(RunValueName, $"\"{exe}\"");
+      }
+      else
+      {
+        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
+        key?.DeleteValue(RunValueName, throwOnMissingValue: false);
+      }
+      return true;
     }
+    catch { return false; }
+  }
 
-    /// <summary>True once the first-run "start with Windows?" question has been shown.</summary>
-    public static bool HasBeenAsked() => File.Exists(AskedFlagPath);
+  /// <summary>True once the first-run "start with Windows?" question has been shown.</summary>
+  public static bool HasBeenAsked() => File.Exists(AskedFlagPath);
 
-    public static void MarkAsked()
+  public static void MarkAsked()
+  {
+    try
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(AskedFlagPath)!);
-            File.WriteAllText(AskedFlagPath, "1");
-        }
-        catch { /* worst case we ask again next launch */ }
+      Directory.CreateDirectory(Path.GetDirectoryName(AskedFlagPath)!);
+      File.WriteAllText(AskedFlagPath, "1");
     }
+    catch { /* worst case we ask again next launch */ }
+  }
+
+  /// <summary>True when the posture timer should start by itself on launch.</summary>
+  public static bool IsAutoStartTimerEnabled() => File.Exists(AutoStartTimerFlagPath);
+
+  /// <summary>Turns "start the posture timer on launch" on or off. Returns false if the marker file couldn't be changed.</summary>
+  public static bool SetAutoStartTimer(bool enabled)
+  {
+    try
+    {
+      if (enabled)
+      {
+        Directory.CreateDirectory(Path.GetDirectoryName(AutoStartTimerFlagPath)!);
+        File.WriteAllText(AutoStartTimerFlagPath, "1");
+      }
+      else if (File.Exists(AutoStartTimerFlagPath))
+      {
+        File.Delete(AutoStartTimerFlagPath);
+      }
+      return true;
+    }
+    catch { return false; }
+  }
 }

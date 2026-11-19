@@ -10,41 +10,50 @@ namespace Waddle.Tests;
 /// </summary>
 public sealed class StartupTestScope : IDisposable
 {
-    private readonly string _originalRunKey = StartupManager.RunKeyPath;
-    private readonly string _originalFlagPath = StartupManager.AskedFlagPath;
-    private readonly string _rootKey = $@"Software\WaddleTests\{Guid.NewGuid():N}";
+  private readonly string _originalRunKey = StartupManager.RunKeyPath;
+  private readonly string _originalFlagPath = StartupManager.AskedFlagPath;
+  private readonly string _originalAutoTimerPath = StartupManager.AutoStartTimerFlagPath;
+  private readonly string _rootKey = $@"Software\WaddleTests\{Guid.NewGuid():N}";
 
-    /// <summary>A folder that does NOT exist yet, so MarkAsked has to create it.</summary>
-    public string FlagDirectory { get; } = Path.Combine(Path.GetTempPath(), $"waddle-startup-{Guid.NewGuid():N}", "nested");
+  /// <summary>A folder that does NOT exist yet, so MarkAsked has to create it.</summary>
+  public string FlagDirectory { get; } = Path.Combine(Path.GetTempPath(), $"waddle-startup-{Guid.NewGuid():N}", "nested");
 
-    public string FlagPath => Path.Combine(FlagDirectory, ".startup-asked");
+  public string FlagPath => Path.Combine(FlagDirectory, ".startup-asked");
 
-    public string RunKeyPath => _rootKey + @"\Run";
+  public string AutoTimerFlagPath => Path.Combine(FlagDirectory, ".autostart-timer");
 
-    public StartupTestScope()
-    {
-        StartupManager.RunKeyPath = RunKeyPath;
-        StartupManager.AskedFlagPath = FlagPath;
-    }
+  public string RunKeyPath => _rootKey + @"\Run";
 
-    /// <summary>Makes every registry write fail (a key name over 255 characters is rejected by Windows).</summary>
-    public void MakeRegistryRefuseWrites() => StartupManager.RunKeyPath = new string('x', 300);
+  public StartupTestScope()
+  {
+    StartupManager.RunKeyPath = RunKeyPath;
+    StartupManager.AskedFlagPath = FlagPath;
+    StartupManager.AutoStartTimerFlagPath = AutoTimerFlagPath;
+  }
 
-    /// <summary>What is stored in the Run key right now, or null when there is no entry.</summary>
-    public string? ReadRunValue()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
-        return key?.GetValue(StartupManager.RunValueName) as string;
-    }
+  /// <summary>Makes every registry write fail (a key name over 255 characters is rejected by Windows).</summary>
+  public void MakeRegistryRefuseWrites() => StartupManager.RunKeyPath = new string('x', 300);
 
-    public void Dispose()
-    {
-        StartupManager.RunKeyPath = _originalRunKey;
-        StartupManager.AskedFlagPath = _originalFlagPath;
+  /// <summary>Makes every write of the auto-start-timer marker fail (a folder name over 255 characters is rejected by Windows).</summary>
+  public void MakeAutoTimerFlagRefuseWrites() =>
+      StartupManager.AutoStartTimerFlagPath = Path.Combine(FlagDirectory, new string('x', 300), ".autostart-timer");
 
-        Registry.CurrentUser.DeleteSubKeyTree(_rootKey, throwOnMissingSubKey: false);
+  /// <summary>What is stored in the Run key right now, or null when there is no entry.</summary>
+  public string? ReadRunValue()
+  {
+    using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
+    return key?.GetValue(StartupManager.RunValueName) as string;
+  }
 
-        var root = Path.GetDirectoryName(FlagDirectory)!;      // the waddle-startup-<guid> folder
-        if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
-    }
+  public void Dispose()
+  {
+    StartupManager.RunKeyPath = _originalRunKey;
+    StartupManager.AskedFlagPath = _originalFlagPath;
+    StartupManager.AutoStartTimerFlagPath = _originalAutoTimerPath;
+
+    Registry.CurrentUser.DeleteSubKeyTree(_rootKey, throwOnMissingSubKey: false);
+
+    var root = Path.GetDirectoryName(FlagDirectory)!;      // the waddle-startup-<guid> folder
+    if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+  }
 }

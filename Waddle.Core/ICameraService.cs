@@ -11,19 +11,19 @@ namespace Waddle.Core;
 public sealed record FaceFrame(byte[] Jpeg, bool FaceFound, int FaceWidth, int FrameWidth,
                                double Brightness = 255, int FaceCount = 0)
 {
-    /// <summary>Face width as a fraction of the frame width (same at any camera resolution).</summary>
-    public double FaceRatio => FrameWidth == 0 ? 0 : (double)FaceWidth / FrameWidth;
+  /// <summary>Face width as a fraction of the frame width (same at any camera resolution).</summary>
+  public double FaceRatio => FrameWidth == 0 ? 0 : (double)FaceWidth / FrameWidth;
 }
 
 public interface ICameraService
 {
-    /// <summary>Raised on a background thread for every processed frame.</summary>
-    event Action<FaceFrame>? FrameReady;
+  /// <summary>Raised on a background thread for every processed frame.</summary>
+  event Action<FaceFrame>? FrameReady;
 
-    /// <summary>Raised on a background thread when the camera or face model can't be used.</summary>
-    event Action<string>? Failed;
+  /// <summary>Raised on a background thread when the camera or face model can't be used.</summary>
+  event Action<string>? Failed;
 
-    bool IsRunning { get; }
-    void Start();
-    void Stop();
+  bool IsRunning { get; }
+  void Start();
+  void Stop();
 }

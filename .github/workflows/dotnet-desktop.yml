@@ -40,6 +40,10 @@ jobs:
     - name: Restore the application
       run: dotnet restore ${{ env.Solution_Name }}
 
+    - name: Verify code formatting
+      if: matrix.configuration == 'Debug'
+      run: dotnet format ${{ env.Solution_Name }} --verify-no-changes --no-restore
+
     - name: Build solution
       run: dotnet build ${{ env.Solution_Name }} --configuration ${{ matrix.configuration }} --no-restore
 

@@ -16,300 +16,300 @@ public enum PauseReason { None = 0, User = 1, Away = 2, Covered = 3, CameraOff =
 /// </summary>
 public sealed class TimeTracker : INotifyPropertyChanged
 {
-    public static TimeTracker Instance { get; } = new();
+  public static TimeTracker Instance { get; } = new();
 
-    private readonly Dictionary<DateOnly, double> _cache = new();   // day -> seconds (in memory)
-    private readonly HashSet<DateOnly> _dirty = new();              // days changed since last save
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
-    private DateTime _lastTick;
-    private DateTime _lastSave = DateTime.MinValue;
-    private TimeSpan _session = TimeSpan.Zero;
+  private readonly Dictionary<DateOnly, double> _cache = new();   // day -> seconds (in memory)
+  private readonly HashSet<DateOnly> _dirty = new();              // days changed since last save
+  private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+  private DateTime _lastTick;
+  private DateTime _lastSave = DateTime.MinValue;
+  private TimeSpan _session = TimeSpan.Zero;
 
-    private IDailyTimeStore? _store;
-    /// <summary>Set once at startup (before the timer is used).</summary>
-    public IDailyTimeStore? Store
+  private IDailyTimeStore? _store;
+  /// <summary>Set once at startup (before the timer is used).</summary>
+  public IDailyTimeStore? Store
+  {
+    get => _store;
+    set { _store = value; _cache.Clear(); _dirty.Clear(); Changed(); }
+  }
+
+  /// <summary>Set once at startup (TimeTracker.Instance.Log = logService).</summary>
+  public ILogService? Log { get; set; }
+
+  private PauseReason _reason = PauseReason.None;
+  /// <summary>Why the timer is paused right now (None = not paused).</summary>
+  public PauseReason Reason => _reason;
+
+  /// <summary>Raised whenever a session ends (Stop button, widget, closing the app).</summary>
+  public event Action? SessionEnded;
+  /// <summary>Raised when Resume is pressed while paused because the camera is off.</summary>
+  public event Action? RetryCameraRequested;
+  /// <summary>Raised whenever the pause reason changes (including back to None).</summary>
+  public event Action<PauseReason>? PauseReasonChanged;
+
+  private bool _widgetOpen;
+  /// <summary>Set by MainWindow when the widget opens/closes.</summary>
+  public bool IsWidgetOpen
+  {
+    get => _widgetOpen;
+    set { _widgetOpen = value; Changed(); }
+  }
+
+  private bool _widgetCollapsed;
+  /// <summary>
+  /// Set by the widget when it is shrunk to its small collapsed form. A collapsed widget can't show
+  /// the status, so banners are allowed again while it is collapsed.
+  /// </summary>
+  public bool IsWidgetCollapsed
+  {
+    get => _widgetCollapsed;
+    set { _widgetCollapsed = value; Changed(); }
+  }
+
+  /// <summary>Dashboard shows its own Pause/Stop only while running with the widget closed.</summary>
+  public bool ShowDashboardControls => IsRunning && !_widgetOpen;
+
+  public bool IsRunning { get; private set; }
+  public bool IsPaused => _reason != PauseReason.None;
+
+  private bool _badPosture;
+  /// <summary>Set by App while the person is slouching: the timer holds still and the status says so.</summary>
+  public bool IsBadPosture
+  {
+    get => _badPosture;
+    set
     {
-        get => _store;
-        set { _store = value; _cache.Clear(); _dirty.Clear(); Changed(); }
+      if (_badPosture == value) return;
+      if (IsRunning) Tick();              // count the time up to this moment first
+      _badPosture = value;
+      _lastTick = DateTime.Now;
+      Changed();
+    }
+  }
+
+  private TimeTracker()
+  {
+    _timer.Tick += (_, _) => Tick();
+  }
+
+  // ---------- what the UI binds to ----------
+  public TimeSpan Today => TimeSpan.FromSeconds(SecondsFor(DateOnly.FromDateTime(DateTime.Now)));
+  public string TodayText => Today.TotalHours >= 1
+      ? $"{(int)Today.TotalHours}h {Today.Minutes:00}m"
+      : $"{Today.Minutes}m {Today.Seconds:00}s";
+  // ---------- duck mood + message (based on time sat up today) ----------
+  /// <summary>Which animation the dashboard duck plays. Slouching beats everything else.</summary>
+  public DuckEmotion MoodEmotion =>
+      _badPosture ? DuckEmotion.Angry
+      : Today.TotalSeconds < 1 ? DuckEmotion.Sad          // no time recorded yet
+      : DuckEmotion.Happy;
+
+  /// <summary>The bold encouraging line on the dashboard. Change the times and words to taste.</summary>
+  public string MoodMessage
+  {
+    get
+    {
+      if (_badPosture) return "Sit up straight, Waddle's watching!";
+      var t = Today;
+      if (t.TotalSeconds < 1) return "Waddle misses you!\nStart your timer.";
+      if (t < TimeSpan.FromMinutes(1)) return "Nice start!\nKeep it up!";
+      if (t < TimeSpan.FromMinutes(2)) return "You're on a roll.\nSit tall!";
+      if (t < TimeSpan.FromMinutes(3)) return "You are going strong!";
+      return "Over 3 minutes of great posture!";
+    }
+  }
+
+  public string SessionText => _session.ToString(@"hh\:mm\:ss");
+  public string TimerButtonText => IsRunning ? "Open widget" : "Start timer";
+  public string PauseButtonText => IsPaused ? "Resume" : "Pause";
+  public string StatusText => !IsRunning ? "Not running" : _reason switch
+  {
+    PauseReason.User => "Paused",
+    PauseReason.Away => "Paused: away",
+    PauseReason.Covered => "Paused: camera is covered",
+    PauseReason.CameraOff => "Paused: camera is off",
+    _ => _badPosture ? "Bad posture: sit up straight" : "Timer running"
+  };
+
+  // ---------- actions ----------
+  /// <summary>Returns true if the timer is running afterwards (false = blocked, e.g. not calibrated).</summary>
+  public bool Start()
+  {
+    if (IsRunning) return true;     // already running, e.g. "Open widget"
+
+    if (!App.EnsureCalibrated())
+    {
+      Log?.Info("Start blocked: not calibrated");
+      return false;
     }
 
-    /// <summary>Set once at startup (TimeTracker.Instance.Log = logService).</summary>
-    public ILogService? Log { get; set; }
+    IsRunning = true;
+    SetReason(PauseReason.None);
+    _session = TimeSpan.Zero;
+    _lastTick = DateTime.Now;
+    _timer.Start();
+    Log?.Info("Timer started");
+    Changed();
+    return true;
+  }
 
-    private PauseReason _reason = PauseReason.None;
-    /// <summary>Why the timer is paused right now (None = not paused).</summary>
-    public PauseReason Reason => _reason;
+  /// <summary>The Pause / Resume button. What it does depends on why the timer is paused.</summary>
+  public void TogglePause()
+  {
+    if (!IsRunning) return;
 
-    /// <summary>Raised whenever a session ends (Stop button, widget, closing the app).</summary>
-    public event Action? SessionEnded;
-    /// <summary>Raised when Resume is pressed while paused because the camera is off.</summary>
-    public event Action? RetryCameraRequested;
-    /// <summary>Raised whenever the pause reason changes (including back to None).</summary>
-    public event Action<PauseReason>? PauseReasonChanged;
-
-    private bool _widgetOpen;
-    /// <summary>Set by MainWindow when the widget opens/closes.</summary>
-    public bool IsWidgetOpen
+    switch (_reason)
     {
-        get => _widgetOpen;
-        set { _widgetOpen = value; Changed(); }
+      case PauseReason.CameraOff:
+        RetryCameraRequested?.Invoke();             // "Resume" = check the camera again
+        return;
+      case PauseReason.Covered:
+        return;                                     // resumes by itself once uncovered and your face is seen
+      case PauseReason.Away:
+        ResumeFromAway();
+        return;
     }
 
-    private bool _widgetCollapsed;
-    /// <summary>
-    /// Set by the widget when it is shrunk to its small collapsed form. A collapsed widget can't show
-    /// the status, so banners are allowed again while it is collapsed.
-    /// </summary>
-    public bool IsWidgetCollapsed
+    Tick();                                             // settle time up to this moment
+    SetReason(_reason == PauseReason.None ? PauseReason.User : PauseReason.None);
+    _lastTick = DateTime.Now;
+    Save();
+    Log?.Info(IsPaused ? "Timer paused" : "Timer resumed");
+    Changed();
+  }
+
+  /// <summary>
+  /// What the Stop buttons call: asks "are you sure?" first. Returns true if the timer was stopped.
+  /// (Closing the app still calls Stop() directly, with no question.)
+  /// </summary>
+  public bool ConfirmAndStop()
+  {
+    if (!IsRunning) return false;
+    Stop();
+    return true;
+  }
+
+
+  public void Stop()
+  {
+    if (!IsRunning) return;
+    Tick();
+    IsRunning = false;
+    _badPosture = false;
+    SetReason(PauseReason.None);
+    _timer.Stop();
+    Save();
+    Log?.Info($"Timer stopped. Session {SessionText}, today {TodayText}");
+    Changed();
+    SessionEnded?.Invoke();
+  }
+
+  /// <summary>
+  /// Pauses because of the camera or because the person left. Never overrides the user's own pause,
+  /// and a less urgent reason never replaces a more urgent one.
+  /// Returns true if the timer is now paused for exactly this reason.
+  /// </summary>
+  public bool AutoPause(PauseReason reason = PauseReason.CameraOff)
+  {
+    if (!IsRunning || reason <= PauseReason.User) return false;
+    if (_reason == PauseReason.User) return false;           // the user's own pause wins
+    if (_reason >= reason) return _reason == reason;         // same pause, or a more urgent one is already active
+
+    if (_reason == PauseReason.None)
     {
-        get => _widgetCollapsed;
-        set { _widgetCollapsed = value; Changed(); }
+      Tick();                                              // settle time up to this moment
+      _lastTick = DateTime.Now;
     }
-
-    /// <summary>Dashboard shows its own Pause/Stop only while running with the widget closed.</summary>
-    public bool ShowDashboardControls => IsRunning && !_widgetOpen;
-
-    public bool IsRunning { get; private set; }
-    public bool IsPaused => _reason != PauseReason.None;
-
-    private bool _badPosture;
-    /// <summary>Set by App while the person is slouching: the timer holds still and the status says so.</summary>
-    public bool IsBadPosture
+    SetReason(reason);
+    Save();
+    Log?.Info(reason switch
     {
-        get => _badPosture;
-        set
-        {
-            if (_badPosture == value) return;
-            if (IsRunning) Tick();              // count the time up to this moment first
-            _badPosture = value;
-            _lastTick = DateTime.Now;
-            Changed();
-        }
+      PauseReason.Away => "Timer paused: away",
+      PauseReason.Covered => "Timer paused: camera covered",
+      _ => "Timer paused: camera lost"
+    });
+    Changed();
+    return true;
+  }
+
+  /// <summary>Camera is back (frames normal and a face seen). Only undoes a camera pause, never the user's or away.</summary>
+  public void AutoResume()
+  {
+    if (_reason != PauseReason.CameraOff && _reason != PauseReason.Covered) return;
+    Resume("camera back");
+  }
+
+  /// <summary>The person pressed Resume after being away.</summary>
+  public void ResumeFromAway()
+  {
+    if (_reason != PauseReason.Away) return;
+    Resume("back from away");
+  }
+
+  // ---------- internals ----------
+  private void Resume(string why)
+  {
+    SetReason(PauseReason.None);
+    _lastTick = DateTime.Now;
+    Log?.Info($"Timer resumed: {why}");
+    Changed();
+  }
+
+  private void SetReason(PauseReason reason)
+  {
+    if (_reason == reason) return;
+    _reason = reason;
+    PauseReasonChanged?.Invoke(reason);
+  }
+
+  // Seconds for a day: from memory if we have it, otherwise read once from the database.
+  private double SecondsFor(DateOnly day)
+  {
+    if (_cache.TryGetValue(day, out var seconds)) return seconds;
+    if (_store is null) return 0;                    // not wired yet; don't cache a fake 0
+    try { seconds = _store.GetSeconds(day); }
+    catch (Exception ex) { Log?.Info($"WARNING: could not read daily time: {ex.Message}"); return 0; }
+    _cache[day] = seconds;
+    return seconds;
+  }
+
+  private void Tick()
+  {
+    var now = DateTime.Now;
+    var delta = now - _lastTick;
+    _lastTick = now;
+
+    // ignore gaps (laptop sleep, debugger pause) so they don't count as sitting time
+    if (!IsRunning || IsPaused || _badPosture || delta > TimeSpan.FromSeconds(5)) { Changed(); return; }
+
+    _session += delta;
+    var day = DateOnly.FromDateTime(now);
+    _cache[day] = SecondsFor(day) + delta.TotalSeconds;
+    _dirty.Add(day);
+
+    if (now - _lastSave > TimeSpan.FromSeconds(30)) Save();     // don't lose much if the app crashes
+    Changed();
+  }
+
+  private void Save()
+  {
+    _lastSave = DateTime.Now;
+    if (_store is null) return;
+    foreach (var day in new List<DateOnly>(_dirty))
+    {
+      try
+      {
+        _store.SetSeconds(day, (int)Math.Floor(_cache[day]));
+        _dirty.Remove(day);
+      }
+      catch (Exception ex)
+      {
+        // best-effort: keep the timer running, try again next save
+        Log?.Info($"WARNING: could not save daily time for {day:yyyy-MM-dd}: {ex.Message}");
+      }
     }
+  }
 
-    private TimeTracker()
-    {
-        _timer.Tick += (_, _) => Tick();
-    }
-
-    // ---------- what the UI binds to ----------
-    public TimeSpan Today => TimeSpan.FromSeconds(SecondsFor(DateOnly.FromDateTime(DateTime.Now)));
-    public string TodayText => Today.TotalHours >= 1
-        ? $"{(int)Today.TotalHours}h {Today.Minutes:00}m"
-        : $"{Today.Minutes}m {Today.Seconds:00}s";
-    // ---------- duck mood + message (based on time sat up today) ----------
-    /// <summary>Which animation the dashboard duck plays. Slouching beats everything else.</summary>
-    public DuckEmotion MoodEmotion =>
-        _badPosture ? DuckEmotion.Angry
-        : Today.TotalSeconds < 1 ? DuckEmotion.Sad          // no time recorded yet
-        : DuckEmotion.Happy;
-
-    /// <summary>The bold encouraging line on the dashboard. Change the times and words to taste.</summary>
-    public string MoodMessage
-    {
-        get
-        {
-            if (_badPosture) return "Sit up straight, Waddle's watching!";
-            var t = Today;
-            if (t.TotalSeconds < 1) return "Waddle misses you!\nStart your timer.";
-            if (t < TimeSpan.FromMinutes(1)) return "Nice start!\nKeep it up!";
-            if (t < TimeSpan.FromMinutes(2)) return "You're on a roll.\nSit tall!";
-            if (t < TimeSpan.FromMinutes(3)) return "You are going strong!";
-            return "Over 3 minutes of great posture!";
-        }
-    }
-
-    public string SessionText => _session.ToString(@"hh\:mm\:ss");
-    public string TimerButtonText => IsRunning ? "Open widget" : "Start timer";
-    public string PauseButtonText => IsPaused ? "Resume" : "Pause";
-    public string StatusText => !IsRunning ? "Not running" : _reason switch
-    {
-        PauseReason.User => "Paused",
-        PauseReason.Away => "Paused: away",
-        PauseReason.Covered => "Paused: camera is covered",
-        PauseReason.CameraOff => "Paused: camera is off",
-        _ => _badPosture ? "Bad posture: sit up straight" : "Timer running"
-    };
-
-    // ---------- actions ----------
-    /// <summary>Returns true if the timer is running afterwards (false = blocked, e.g. not calibrated).</summary>
-    public bool Start()
-    {
-        if (IsRunning) return true;     // already running, e.g. "Open widget"
-
-        if (!App.EnsureCalibrated())
-        {
-            Log?.Info("Start blocked: not calibrated");
-            return false;
-        }
-
-        IsRunning = true;
-        SetReason(PauseReason.None);
-        _session = TimeSpan.Zero;
-        _lastTick = DateTime.Now;
-        _timer.Start();
-        Log?.Info("Timer started");
-        Changed();
-        return true;
-    }
-
-    /// <summary>The Pause / Resume button. What it does depends on why the timer is paused.</summary>
-    public void TogglePause()
-    {
-        if (!IsRunning) return;
-
-        switch (_reason)
-        {
-            case PauseReason.CameraOff:
-                RetryCameraRequested?.Invoke();             // "Resume" = check the camera again
-                return;
-            case PauseReason.Covered:
-                return;                                     // resumes by itself once uncovered and your face is seen
-            case PauseReason.Away:
-                ResumeFromAway();
-                return;
-        }
-
-        Tick();                                             // settle time up to this moment
-        SetReason(_reason == PauseReason.None ? PauseReason.User : PauseReason.None);
-        _lastTick = DateTime.Now;
-        Save();
-        Log?.Info(IsPaused ? "Timer paused" : "Timer resumed");
-        Changed();
-    }
-
-    /// <summary>
-    /// What the Stop buttons call: asks "are you sure?" first. Returns true if the timer was stopped.
-    /// (Closing the app still calls Stop() directly, with no question.)
-    /// </summary>
-    public bool ConfirmAndStop()
-    {
-        if (!IsRunning) return false;
-        Stop();
-        return true;
-    }
-
-
-    public void Stop()
-    {
-        if (!IsRunning) return;
-        Tick();
-        IsRunning = false;
-        _badPosture = false;
-        SetReason(PauseReason.None);
-        _timer.Stop();
-        Save();
-        Log?.Info($"Timer stopped. Session {SessionText}, today {TodayText}");
-        Changed();
-        SessionEnded?.Invoke();
-    }
-
-    /// <summary>
-    /// Pauses because of the camera or because the person left. Never overrides the user's own pause,
-    /// and a less urgent reason never replaces a more urgent one.
-    /// Returns true if the timer is now paused for exactly this reason.
-    /// </summary>
-    public bool AutoPause(PauseReason reason = PauseReason.CameraOff)
-    {
-        if (!IsRunning || reason <= PauseReason.User) return false;
-        if (_reason == PauseReason.User) return false;           // the user's own pause wins
-        if (_reason >= reason) return _reason == reason;         // same pause, or a more urgent one is already active
-
-        if (_reason == PauseReason.None)
-        {
-            Tick();                                              // settle time up to this moment
-            _lastTick = DateTime.Now;
-        }
-        SetReason(reason);
-        Save();
-        Log?.Info(reason switch
-        {
-            PauseReason.Away => "Timer paused: away",
-            PauseReason.Covered => "Timer paused: camera covered",
-            _ => "Timer paused: camera lost"
-        });
-        Changed();
-        return true;
-    }
-
-    /// <summary>Camera is back (frames normal and a face seen). Only undoes a camera pause, never the user's or away.</summary>
-    public void AutoResume()
-    {
-        if (_reason != PauseReason.CameraOff && _reason != PauseReason.Covered) return;
-        Resume("camera back");
-    }
-
-    /// <summary>The person pressed Resume after being away.</summary>
-    public void ResumeFromAway()
-    {
-        if (_reason != PauseReason.Away) return;
-        Resume("back from away");
-    }
-
-    // ---------- internals ----------
-    private void Resume(string why)
-    {
-        SetReason(PauseReason.None);
-        _lastTick = DateTime.Now;
-        Log?.Info($"Timer resumed: {why}");
-        Changed();
-    }
-
-    private void SetReason(PauseReason reason)
-    {
-        if (_reason == reason) return;
-        _reason = reason;
-        PauseReasonChanged?.Invoke(reason);
-    }
-
-    // Seconds for a day: from memory if we have it, otherwise read once from the database.
-    private double SecondsFor(DateOnly day)
-    {
-        if (_cache.TryGetValue(day, out var seconds)) return seconds;
-        if (_store is null) return 0;                    // not wired yet; don't cache a fake 0
-        try { seconds = _store.GetSeconds(day); }
-        catch (Exception ex) { Log?.Info($"WARNING: could not read daily time: {ex.Message}"); return 0; }
-        _cache[day] = seconds;
-        return seconds;
-    }
-
-    private void Tick()
-    {
-        var now = DateTime.Now;
-        var delta = now - _lastTick;
-        _lastTick = now;
-
-        // ignore gaps (laptop sleep, debugger pause) so they don't count as sitting time
-        if (!IsRunning || IsPaused || _badPosture || delta > TimeSpan.FromSeconds(5)) { Changed(); return; }
-
-        _session += delta;
-        var day = DateOnly.FromDateTime(now);
-        _cache[day] = SecondsFor(day) + delta.TotalSeconds;
-        _dirty.Add(day);
-
-        if (now - _lastSave > TimeSpan.FromSeconds(30)) Save();     // don't lose much if the app crashes
-        Changed();
-    }
-
-    private void Save()
-    {
-        _lastSave = DateTime.Now;
-        if (_store is null) return;
-        foreach (var day in new List<DateOnly>(_dirty))
-        {
-            try
-            {
-                _store.SetSeconds(day, (int)Math.Floor(_cache[day]));
-                _dirty.Remove(day);
-            }
-            catch (Exception ex)
-            {
-                // best-effort: keep the timer running, try again next save
-                Log?.Info($"WARNING: could not save daily time for {day:yyyy-MM-dd}: {ex.Message}");
-            }
-        }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-    private void Changed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty)); // refresh all
+  public event PropertyChangedEventHandler? PropertyChanged;
+  private void Changed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty)); // refresh all
 }

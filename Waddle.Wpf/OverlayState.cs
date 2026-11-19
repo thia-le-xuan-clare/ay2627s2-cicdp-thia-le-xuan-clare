@@ -6,14 +6,14 @@ namespace Waddle.Wpf;
 /// </summary>
 public static class OverlayState
 {
-    private static int _count;
+  private static int _count;
 
-    public static bool IsActive => _count > 0;
+  public static bool IsActive => _count > 0;
 
-    public static void Enter() => _count++;
+  public static void Enter() => _count++;
 
-    public static void Exit()
-    {
-        if (_count > 0) _count--;
-    }
+  public static void Exit()
+  {
+    if (_count > 0) _count--;
+  }
 }

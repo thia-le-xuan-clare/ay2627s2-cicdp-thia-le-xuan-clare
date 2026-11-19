@@ -4,59 +4,59 @@ namespace Waddle.Infrastructure.Data;
 
 public class SqliteWarningEventStore : IWarningEventStore
 {
-    private readonly DatabaseInitializer _db;
+  private readonly DatabaseInitializer _db;
 
-    public SqliteWarningEventStore(DatabaseInitializer db)
+  public SqliteWarningEventStore(DatabaseInitializer db)
+  {
+    _db = db;
+  }
+
+  public void Record(WarningLevel level, WarningOutcome outcome, DateTime occurredAt)
+  {
+    using var connection = _db.OpenConnection();
+    using var transaction = connection.BeginTransaction();
+
+    var dateText = occurredAt.ToString("yyyy-MM-dd");
+    var timestampText = occurredAt.ToString("O");
+
+    // Ensure today's row exists in daily_history so the foreign key succeeds
+    using (var ensureDay = connection.CreateCommand())
     {
-        _db = db;
-    }
-
-    public void Record(WarningLevel level, WarningOutcome outcome, DateTime occurredAt)
-    {
-        using var connection = _db.OpenConnection();
-        using var transaction = connection.BeginTransaction();
-
-        var dateText = occurredAt.ToString("yyyy-MM-dd");
-        var timestampText = occurredAt.ToString("O");
-
-        // Ensure today's row exists in daily_history so the foreign key succeeds
-        using (var ensureDay = connection.CreateCommand())
-        {
-            ensureDay.Transaction = transaction;
-            ensureDay.CommandText = """
+      ensureDay.Transaction = transaction;
+      ensureDay.CommandText = """
                 INSERT OR IGNORE INTO daily_history (date, seconds_good)
                 VALUES ($date, 0);
                 """;
-            ensureDay.Parameters.AddWithValue("$date", dateText);
-            ensureDay.ExecuteNonQuery();
-        }
+      ensureDay.Parameters.AddWithValue("$date", dateText);
+      ensureDay.ExecuteNonQuery();
+    }
 
-        // Insert into warning_events
-        using (var insertEvent = connection.CreateCommand())
-        {
-            insertEvent.Transaction = transaction;
-            insertEvent.CommandText = """
+    // Insert into warning_events
+    using (var insertEvent = connection.CreateCommand())
+    {
+      insertEvent.Transaction = transaction;
+      insertEvent.CommandText = """
                 INSERT INTO warning_events (day_id, level_id, outcome_id, occurred_at)
                 SELECT day_id, $levelId, $outcomeId, $occurredAt
                 FROM daily_history
                 WHERE date = $date;
                 """;
-            insertEvent.Parameters.AddWithValue("$levelId", (int)level);
-            insertEvent.Parameters.AddWithValue("$outcomeId", (int)outcome);
-            insertEvent.Parameters.AddWithValue("$occurredAt", timestampText);
-            insertEvent.Parameters.AddWithValue("$date", dateText);
-            insertEvent.ExecuteNonQuery();
-        }
-
-        transaction.Commit();
+      insertEvent.Parameters.AddWithValue("$levelId", (int)level);
+      insertEvent.Parameters.AddWithValue("$outcomeId", (int)outcome);
+      insertEvent.Parameters.AddWithValue("$occurredAt", timestampText);
+      insertEvent.Parameters.AddWithValue("$date", dateText);
+      insertEvent.ExecuteNonQuery();
     }
 
-    // Ready for your future dashboard
-    public IReadOnlyList<DailyWarningSummary> GetDailySummaries(int lastNDays = 7)
-    {
-        using var connection = _db.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
+    transaction.Commit();
+  }
+
+  // Ready for your future dashboard
+  public IReadOnlyList<DailyWarningSummary> GetDailySummaries(int lastNDays = 7)
+  {
+    using var connection = _db.OpenConnection();
+    using var command = connection.CreateCommand();
+    command.CommandText = """
             SELECT
                 d.date,
                 COALESCE(w.level_id, 0) AS level_id,
@@ -70,30 +70,30 @@ public class SqliteWarningEventStore : IWarningEventStore
             ORDER BY d.date DESC
             LIMIT $limit;
             """;
-        command.Parameters.AddWithValue("$limit", lastNDays * 2);
+    command.Parameters.AddWithValue("$limit", lastNDays * 2);
 
-        var results = new List<DailyWarningSummary>();
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            results.Add(new DailyWarningSummary(
-                Date: reader.GetString(0),
-                LevelId: reader.GetInt32(1),
-                SatUpCount: reader.GetInt32(2),
-                HotkeyExitCount: reader.GetInt32(3),
-                IgnoredCount: reader.GetInt32(4),
-                DismissedCount: reader.GetInt32(5)
-            ));
-        }
-
-        return results;
+    var results = new List<DailyWarningSummary>();
+    using var reader = command.ExecuteReader();
+    while (reader.Read())
+    {
+      results.Add(new DailyWarningSummary(
+          Date: reader.GetString(0),
+          LevelId: reader.GetInt32(1),
+          SatUpCount: reader.GetInt32(2),
+          HotkeyExitCount: reader.GetInt32(3),
+          IgnoredCount: reader.GetInt32(4),
+          DismissedCount: reader.GetInt32(5)
+      ));
     }
 
-    public DayWarningStats GetDayStats(DateOnly day)
-    {
-        using var connection = _db.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
+    return results;
+  }
+
+  public DayWarningStats GetDayStats(DateOnly day)
+  {
+    using var connection = _db.OpenConnection();
+    using var command = connection.CreateCommand();
+    command.CommandText = """
             SELECT
                 w.level_id,
                 SUM(CASE WHEN w.outcome_id = 1 THEN 1 ELSE 0 END),
@@ -105,21 +105,21 @@ public class SqliteWarningEventStore : IWarningEventStore
             WHERE d.date = $date
             GROUP BY w.level_id;
             """;
-        command.Parameters.AddWithValue("$date", day.ToString("yyyy-MM-dd"));
+    command.Parameters.AddWithValue("$date", day.ToString("yyyy-MM-dd"));
 
-        var banner = new LevelOutcomeCounts(0, 0, 0, 0);
-        var overlay = new LevelOutcomeCounts(0, 0, 0, 0);
+    var banner = new LevelOutcomeCounts(0, 0, 0, 0);
+    var overlay = new LevelOutcomeCounts(0, 0, 0, 0);
 
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var counts = new LevelOutcomeCounts(
-                reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetInt32(4));
-            if (reader.GetInt32(0) == (int)WarningLevel.Banner) banner = counts;
-            else if (reader.GetInt32(0) == (int)WarningLevel.Overlay) overlay = counts;
-        }
-
-        // Every slouch starts with a banner, so banners shown = times slouched.
-        return new DayWarningStats(day, banner.Total, banner, overlay);
+    using var reader = command.ExecuteReader();
+    while (reader.Read())
+    {
+      var counts = new LevelOutcomeCounts(
+          reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetInt32(4));
+      if (reader.GetInt32(0) == (int)WarningLevel.Banner) banner = counts;
+      else if (reader.GetInt32(0) == (int)WarningLevel.Overlay) overlay = counts;
     }
+
+    // Every slouch starts with a banner, so banners shown = times slouched.
+    return new DayWarningStats(day, banner.Total, banner, overlay);
+  }
 }
