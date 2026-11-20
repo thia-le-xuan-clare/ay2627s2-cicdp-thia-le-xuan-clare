@@ -20,7 +20,9 @@ public sealed class FileLogService : ILogService
 
   private void Write(string kind, string message)
   {
-    var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{kind.ToUpper()}] {message}{Environment.NewLine}";
+    // Escape line breaks so a message can never forge extra log lines (log injection)
+    var safeMessage = message.Replace("\r", "\\r").Replace("\n", "\\n");
+    var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{kind.ToUpper()}] {safeMessage}{Environment.NewLine}";
     lock (_lock)
     {
       try

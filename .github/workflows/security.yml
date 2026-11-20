@@ -1,0 +1,74 @@
+name: Security
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 2 * * 1"   # weekly: new CVEs appear even when the code hasn't changed
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-scan:
+    name: Vulnerable NuGet packages
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore
+      run: dotnet restore Waddle.slnx
+
+    - name: Fail if any package (including transitive) has a known vulnerability
+      shell: pwsh
+      run: |
+        $failed = $false
+        Get-ChildItem -Recurse -Filter *.csproj | ForEach-Object {
+          $out = dotnet list $_.FullName package --vulnerable --include-transitive 2>&1 | Out-String
+          Write-Host $out
+          if ($out -match "has the following vulnerable packages") { $failed = $true }
+        }
+        if ($failed) { Write-Error "Vulnerable packages found. See the log above."; exit 1 }
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0   # scan the full history, not just the latest commit
+
+    - uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  codeql:
+    name: CodeQL (static analysis)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - uses: github/codeql-action/init@v4
+      with:
+        languages: csharp
+        build-mode: manual
+
+    - name: Build
+      run: dotnet build Waddle.slnx --configuration Release
+
+    - uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:csharp"
