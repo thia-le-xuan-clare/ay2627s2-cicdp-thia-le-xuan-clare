@@ -1,3 +1,4 @@
+using System.Globalization;
 using Waddle.Core;
 
 namespace Waddle.Infrastructure;
@@ -22,7 +23,9 @@ public sealed class FileLogService : ILogService
   {
     // Escape line breaks so a message can never forge extra log lines (log injection)
     var safeMessage = message.Replace("\r", "\\r").Replace("\n", "\\n");
-    var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{kind.ToUpper()}] {safeMessage}{Environment.NewLine}";
+    var line = string.Create(
+        CultureInfo.InvariantCulture,
+        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{kind.ToUpperInvariant()}] {safeMessage}{Environment.NewLine}");
     lock (_lock)
     {
       try

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -67,7 +68,7 @@ public sealed class PieChartModel
 /// </summary>
 public sealed partial class DayStatsViewModel : ObservableObject
 {
-  private static Brush MakeBrush(string hex)
+  private static SolidColorBrush MakeBrush(string hex)
   {
     var b = (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
     b.Freeze();
@@ -112,7 +113,7 @@ public sealed partial class DayStatsViewModel : ObservableObject
     var stats = _store.GetDayStats(day);
 
     Headline = stats.SlouchCount == 1 ? "You slouched 1 time" : $"You slouched {stats.SlouchCount} times";
-    DateText = day == _clock() ? "Today" : day.ToString("dddd d MMMM yyyy");
+    DateText = day == _clock() ? "Today" : day.ToString("dddd d MMMM yyyy", CultureInfo.CurrentCulture);
 
     Banner = new PieChartModel("Banner", new (string, int, Brush)[]
 {

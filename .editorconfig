@@ -11,3 +11,12 @@ trim_trailing_whitespace = true
 [*.cs]
 # Underscores are the project's test naming convention
 dotnet_diagnostic.CA1707.severity = none
+
+# Optional: C#-only project, no need to avoid Visual Basic keywords like Stop / To
+dotnet_diagnostic.CA1716.severity = none
+
+[*Tests/**/*.cs]
+# xUnit [CollectionDefinition] classes conventionally end in 'Collection'
+dotnet_diagnostic.CA1711.severity = none
+# Inline test data arrays are clearer than static readonly fields in tests
+dotnet_diagnostic.CA1861.severity = none

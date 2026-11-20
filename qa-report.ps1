@@ -128,9 +128,10 @@ $sw.Restart()
 if (Get-Command gh -ErrorAction SilentlyContinue) {
   $alertsJson = & gh api "repos/{owner}/{repo}/code-scanning/alerts?state=open&per_page=100" 2>&1 | Out-String
   if ($LASTEXITCODE -eq 0) {
-    $alerts = @($alertsJson | ConvertFrom-Json)
+    $parsed = $alertsJson | ConvertFrom-Json
+    $alerts = if ($null -eq $parsed) { @() } elseif ($parsed -is [System.Array]) { $parsed } else { @($parsed) }
     $lines = $alerts | ForEach-Object { "[$($_.rule.security_severity_level)$($_.rule.severity)] $($_.rule.id): $($_.most_recent_instance.location.path):$($_.most_recent_instance.location.start_line)" }
-    Add-Result 'Security' 'CodeQL (open alerts on GitHub)' ($(if ($alerts.Count) { 'FAIL' } else { 'PASS' })) `
+    Add-Result 'Security' 'CodeQL (open alerts on GitHub)' ($(if ($alerts.Count -gt 0) { 'FAIL' } else { 'PASS' })) `
       "$($alerts.Count) open alerts" ($lines -join "`n") $sw.Elapsed.TotalSeconds
   } else {
     Add-Result 'Security' 'CodeQL (open alerts on GitHub)' 'SKIP' 'Could not read alerts. Run: gh auth login (needs repo access and code scanning enabled)' $alertsJson
@@ -146,19 +147,6 @@ if ($SkipE2E) {
 } else {
   Invoke-Tests 'E2E' 'FlaUI UI automation' $E2EProject $null 'e2e'
 }
-
-# ---------------------------------------------------------------- TERMINAL SUMMARY
-$fail = @($results | Where-Object Status -eq 'FAIL').Count
-$pass = @($results | Where-Object Status -eq 'PASS').Count
-$skip = @($results | Where-Object Status -eq 'SKIP').Count
-Write-Host "`n================ QA REPORT ================" -ForegroundColor Cyan
-foreach ($g in $results | Group-Object Stage) {
-  $bad = @($g.Group | Where-Object Status -eq 'FAIL').Count
-  $c = if ($bad) { 'Red' } else { 'Green' }
-  Write-Host ("{0,-20} {1}" -f $g.Name, $(if ($bad) { 'FAIL' } else { 'PASS' })) -ForegroundColor $c
-}
-Write-Host ("`nChecks: {0} passed, {1} failed, {2} skipped" -f $pass, $fail, $skip)
-Write-Host ("Overall: {0}" -f $(if ($fail) { 'FAILED' } else { 'PASSED' })) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 
 # ---------------------------------------------------------------- HTML
 $enc = { param($s) [System.Net.WebUtility]::HtmlEncode([string]$s) }
@@ -197,8 +185,10 @@ pre{white-space:pre-wrap;background:var(--card);padding:.5rem;border-radius:6px;
 <div class="card"><b class="skip">$skip</b>skipped</div>
 </div>
 <div class="wrap"><table>
-<tr><th>Stage</th><th>Check</th><th>Status</th><th>Result</th><th>Time</th></tr>
+<thead><tr><th>Stage</th><th>Check</th><th>Status</th><th>Result</th><th>Time</th></tr></thead>
+<tbody>
 $($rows -join "`n")
+</tbody>
 </table></div>
 </body></html>
 "@

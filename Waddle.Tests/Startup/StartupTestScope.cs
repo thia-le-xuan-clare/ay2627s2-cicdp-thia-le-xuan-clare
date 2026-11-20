@@ -32,7 +32,7 @@ public sealed class StartupTestScope : IDisposable
   }
 
   /// <summary>Makes every registry write fail (a key name over 255 characters is rejected by Windows).</summary>
-  public void MakeRegistryRefuseWrites() => StartupManager.RunKeyPath = new string('x', 300);
+  public static void MakeRegistryRefuseWrites() => StartupManager.RunKeyPath = new string('x', 300);
 
   /// <summary>Makes every write of the auto-start-timer marker fail (a folder name over 255 characters is rejected by Windows).</summary>
   public void MakeAutoTimerFlagRefuseWrites() =>

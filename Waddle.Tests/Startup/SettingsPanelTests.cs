@@ -167,7 +167,7 @@ public sealed class SettingsPanelTests : IDisposable
   {
     WithPanel(p =>
     {
-      _scope.MakeRegistryRefuseWrites();
+      StartupTestScope.MakeRegistryRefuseWrites();
 
       Click(SignInCheck(p));
 
@@ -196,7 +196,7 @@ public sealed class SettingsPanelTests : IDisposable
   {
     WithPanel(p =>
     {
-      _scope.MakeRegistryRefuseWrites();
+      StartupTestScope.MakeRegistryRefuseWrites();
       Click(SignInCheck(p));
       Assert.Equal(Visibility.Visible, Error(p).Visibility);
 

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using Microsoft.Data.Sqlite;
 using Waddle.Infrastructure.Data;
@@ -23,7 +24,7 @@ public sealed class TempDatabase : IDisposable
     using var connection = Db.OpenConnection();
     using var command = connection.CreateCommand();
     command.CommandText = sql;
-    return (T)Convert.ChangeType(command.ExecuteScalar()!, typeof(T));
+    return (T)Convert.ChangeType(command.ExecuteScalar()!, typeof(T), CultureInfo.InvariantCulture);
   }
 
   /// <summary>Runs an INSERT/UPDATE/DELETE straight against the database.</summary>

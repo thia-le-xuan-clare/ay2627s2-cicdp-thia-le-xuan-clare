@@ -27,7 +27,7 @@ public sealed class BannerServiceTests : IDisposable
 
   private static BannerService Banner => BannerService.Instance;
 
-  private int Count(string startsWith) => _log.InfoLines.Count(l => l.StartsWith(startsWith));
+  private int Count(string startsWith) => _log.InfoLines.Count(l => l.StartsWith(startsWith, StringComparison.Ordinal));
 
   private static string? CurrentMessage()
   {

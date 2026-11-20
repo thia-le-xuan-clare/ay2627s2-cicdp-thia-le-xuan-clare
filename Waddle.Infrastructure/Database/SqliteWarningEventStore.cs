@@ -1,3 +1,4 @@
+using System.Globalization;
 using Waddle.Core;
 
 namespace Waddle.Infrastructure.Data;
@@ -16,8 +17,8 @@ public class SqliteWarningEventStore : IWarningEventStore
     using var connection = _db.OpenConnection();
     using var transaction = connection.BeginTransaction();
 
-    var dateText = occurredAt.ToString("yyyy-MM-dd");
-    var timestampText = occurredAt.ToString("O");
+    var dateText = occurredAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var timestampText = occurredAt.ToString("O", CultureInfo.InvariantCulture);
 
     // Ensure today's row exists in daily_history so the foreign key succeeds
     using (var ensureDay = connection.CreateCommand())
@@ -105,7 +106,7 @@ public class SqliteWarningEventStore : IWarningEventStore
             WHERE d.date = $date
             GROUP BY w.level_id;
             """;
-    command.Parameters.AddWithValue("$date", day.ToString("yyyy-MM-dd"));
+    command.Parameters.AddWithValue("$date", day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
 
     var banner = new LevelOutcomeCounts(0, 0, 0, 0);
     var overlay = new LevelOutcomeCounts(0, 0, 0, 0);

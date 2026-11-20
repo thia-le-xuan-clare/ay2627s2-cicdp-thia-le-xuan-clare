@@ -50,12 +50,12 @@ public partial class CalibrationViewModel : ObservableObject, IDisposable
   }
 
   /// <summary>The UI binds straight to the monitor for the live picture and overlay text.</summary>
-  public CameraMonitor Monitor => CameraMonitor.Instance;
+  public static CameraMonitor Monitor => CameraMonitor.Instance;
 
   public bool IsAlreadyCalibrated => Step == CalibrationStep.AlreadyCalibrated;
   public bool IsLive => Step != CalibrationStep.AlreadyCalibrated;
   public bool IsCounting => Step == CalibrationStep.Counting;
-  public string ScanText => Monitor.IsOn ? "Scan" : "Try again";
+  public static string ScanText => Monitor.IsOn ? "Scan" : "Try again";
 
   public bool IsFirstRun { get; }
   public string TitleText => IsFirstRun ? "Welcome to Waddle!" : "Please sit up straight";
@@ -172,12 +172,12 @@ public partial class CalibrationViewModel : ObservableObject, IDisposable
     }
   }
 
-
   public void Dispose()
   {
     if (_closed) return;
     _closed = true;
     Monitor.PropertyChanged -= OnMonitorChanged;
     Monitor.Release(Holder);
+    GC.SuppressFinalize(this);
   }
 }

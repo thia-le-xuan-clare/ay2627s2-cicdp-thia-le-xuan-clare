@@ -169,7 +169,7 @@ public sealed class StartupPromptWindowTests : IDisposable
   [Fact]
   public void Continue_WhenWindowsRefusesTheWrite_StillClosesAndDoesNotAskAgain()
   {
-    _scope.MakeRegistryRefuseWrites();
+    StartupTestScope.MakeRegistryRefuseWrites();
 
     WithWindow((w, closed) =>
     {

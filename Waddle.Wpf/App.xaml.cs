@@ -9,7 +9,7 @@ using Waddle.Infrastructure.Data;
 
 namespace Waddle.Wpf;
 
-public partial class App : Application
+public partial class App : Application, IDisposable
 {
   public static IServiceProvider Services { get; private set; } = null!;
 
@@ -254,7 +254,14 @@ public partial class App : Application
 
   protected override void OnExit(ExitEventArgs e)
   {
-    _tray?.Dispose();
+    Dispose();
     base.OnExit(e);
+  }
+
+  public void Dispose()
+  {
+    _tray?.Dispose();
+    _tray = null;
+    GC.SuppressFinalize(this);
   }
 }
