@@ -55,7 +55,7 @@ public partial class WidgetWindow : Window
     base.OnSourceInitialized(e);
     var hwnd = new WindowInteropHelper(this).Handle;
     int style = GetWindowLong(hwnd, GWL_EXSTYLE);
-    SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
+    _ = SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
   }
 
   private const int GWL_EXSTYLE = -20;

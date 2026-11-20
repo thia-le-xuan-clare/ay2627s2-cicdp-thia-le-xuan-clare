@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -12,7 +13,7 @@ public sealed partial class CalendarDay : ObservableObject
 {
   public DateOnly? Date { get; }
   public bool IsBlank => Date is null;
-  public string DayNumber => Date is { } d ? d.Day.ToString() : "";
+  public string DayNumber => Date is { } d ? d.Day.ToString(CultureInfo.CurrentCulture) : "";
   public string TimeText => Seconds == 0 ? "0m" : HistoryViewModel.Format(Seconds);
   public string Tooltip => Date is { } d ? $"{d:ddd d MMM}: {HistoryViewModel.Format(Seconds)}" : "";
   public ICommand? SelectCommand { get; }
@@ -115,7 +116,7 @@ public sealed partial class HistoryCalendarViewModel : ObservableObject
 
     int offset = ((int)_month.DayOfWeek + 6) % 7;        // Monday = column 0
     int weekCount = (offset + days + 6) / 7;
-    MonthTitle = _month.ToString("MMMM yyyy");
+    MonthTitle = _month.ToString("MMMM yyyy", CultureInfo.CurrentCulture);
     CanGoNext = _month < new DateOnly(today.Year, today.Month, 1);
 
     bool hadSelection = _selected != null;

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
@@ -104,7 +105,7 @@ namespace Waddle.UITests
                     VALUES (1, @faceValue, @calibratedAt);
                     """;
         cmd.Parameters.AddWithValue("@faceValue", faceValue);
-        cmd.Parameters.AddWithValue("@calibratedAt", DateTime.UtcNow.ToString("o"));
+        cmd.Parameters.AddWithValue("@calibratedAt", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
         cmd.ExecuteNonQuery();
       }
 
@@ -277,21 +278,18 @@ namespace Waddle.UITests
     }
 
     [Fact]
+
     public void DailyHistory_SeededInDatabase_DisplaysSavedTimeOnMainWindow()
     {
       SeedCalibration(0.25);
-      var today = DateTime.Now.ToString("yyyy-MM-dd");
+      var today = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
       SeedDailyHistory(today, 3660);
-
       LaunchApp();
-
       var mainWindow = _app!.GetMainWindow(_automation!, TimeSpan.FromSeconds(10));
       Assert.NotNull(mainWindow);
-
       var zeroTimeText = mainWindow!.FindFirstDescendant(cf => cf.ByName("0m"));
       Assert.Null(zeroTimeText);
     }
-
     public void Dispose()
     {
       _automation?.Dispose();
@@ -313,7 +311,6 @@ namespace Waddle.UITests
         _app.Dispose();
       }
       SqliteConnection.ClearAllPools();
-
       Registry.CurrentUser.DeleteSubKeyTree(@"Software\WaddleUITests", throwOnMissingSubKey: false);
       if (File.Exists(_askedFlagPath)) File.Delete(_askedFlagPath);
       if (File.Exists(_autoTimerFlagPath)) File.Delete(_autoTimerFlagPath);
@@ -322,6 +319,7 @@ namespace Waddle.UITests
       Environment.SetEnvironmentVariable("WADDLE_STARTUP_ASKED_FLAG", null);
       Environment.SetEnvironmentVariable("WADDLE_DB_PATH", null);
       try { Directory.Delete(_testDataDir, recursive: true); } catch { /* temp folder, fine if a file is still locked */ }
+      GC.SuppressFinalize(this);
     }
   }
 }

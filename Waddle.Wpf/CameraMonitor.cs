@@ -391,7 +391,7 @@ public sealed class CameraMonitor : INotifyPropertyChanged
   {
     if (!_started) return;
     // model-file problems already say exactly what is wrong; camera problems get a friendly reminder
-    bool modelProblem = message.StartsWith("Face model");
+    bool modelProblem = message.StartsWith("Face model", StringComparison.Ordinal);
     if (modelProblem) Log?.Security("Face model missing");
     HandleGone(modelProblem ? message : IsOn ? StoppedMessage : NoCameraMessage);
   }

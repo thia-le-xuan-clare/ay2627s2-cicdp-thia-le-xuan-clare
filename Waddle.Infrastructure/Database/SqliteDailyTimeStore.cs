@@ -1,3 +1,4 @@
+using System.Globalization;
 using Waddle.Core;
 
 namespace Waddle.Infrastructure.Data;
@@ -16,7 +17,7 @@ public sealed class SqliteDailyTimeStore : IDailyTimeStore
     command.CommandText = "SELECT seconds_good FROM daily_history WHERE date = $date;";
     command.Parameters.AddWithValue("$date", Key(day));
     var result = command.ExecuteScalar();
-    return result is null or DBNull ? 0 : Convert.ToInt32(result);
+    return result is null or DBNull ? 0 : Convert.ToInt32(result, CultureInfo.InvariantCulture);
   }
 
   public void SetSeconds(DateOnly day, int seconds)
@@ -45,9 +46,9 @@ public sealed class SqliteDailyTimeStore : IDailyTimeStore
     command.Parameters.AddWithValue("$to", Key(to));
     using var reader = command.ExecuteReader();
     while (reader.Read())
-      result[DateOnly.ParseExact(reader.GetString(0), "yyyy-MM-dd")] = reader.GetInt32(1);
+      result[DateOnly.ParseExact(reader.GetString(0), "yyyy-MM-dd", CultureInfo.InvariantCulture)] = reader.GetInt32(1);
     return result;
   }
 
-  private static string Key(DateOnly day) => day.ToString("yyyy-MM-dd");
+  private static string Key(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 }

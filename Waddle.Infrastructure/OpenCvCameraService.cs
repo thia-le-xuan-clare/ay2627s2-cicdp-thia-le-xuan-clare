@@ -5,7 +5,7 @@ namespace Waddle.Infrastructure;
 
 /// Opens the webcam on a background thread, finds the biggest face in each frame,
 /// draws a box around it and publishes the frame. Same logic as the CameraTest project.
-public sealed class OpenCvCameraService : ICameraService
+public sealed class OpenCvCameraService : ICameraService, IDisposable
 {
   private const int DetectWidth = 320;     // the face search runs on a copy this wide
   private const int PreviewWidth = 480;    // the picture sent to the screen is at most this wide
@@ -52,6 +52,8 @@ public sealed class OpenCvCameraService : ICameraService
       _cts = null;
     }
   }
+
+  public void Dispose() => Stop();
 
   private void Run(CancellationToken token)
   {

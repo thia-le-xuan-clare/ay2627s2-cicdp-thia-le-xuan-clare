@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.ComponentModel;
 using System.Windows.Threading;
 using Waddle.Core;
@@ -119,7 +120,7 @@ public sealed class TimeTracker : INotifyPropertyChanged
     }
   }
 
-  public string SessionText => _session.ToString(@"hh\:mm\:ss");
+  public string SessionText => _session.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
   public string TimerButtonText => IsRunning ? "Open widget" : "Start timer";
   public string PauseButtonText => IsPaused ? "Resume" : "Pause";
   public string StatusText => !IsRunning ? "Not running" : _reason switch

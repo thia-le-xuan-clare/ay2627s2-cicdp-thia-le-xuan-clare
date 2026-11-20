@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Waddle.Core;
@@ -67,7 +68,7 @@ public sealed partial class HistoryViewModel : ObservableObject
 
     int offset = ((int)_month.DayOfWeek + 6) % 7;        // Monday = row 0
     WeekCount = (offset + days + 6) / 7;
-    MonthTitle = _month.ToString("MMMM yyyy");
+    MonthTitle = _month.ToString("MMMM yyyy", CultureInfo.CurrentCulture);
     CanGoNext = _month < new DateOnly(today.Year, today.Month, 1);
 
     _selected = null;

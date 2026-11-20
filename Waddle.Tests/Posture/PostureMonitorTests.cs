@@ -154,7 +154,7 @@ public sealed class PostureMonitorTests : IDisposable
 
     var expectedStart = (int)PostureTuning.Countdown.TotalSeconds;
     Assert.Equal(new[] { "started", $"tick:{expectedStart}" }, _events);
-    Assert.Contains(_log.InfoLines, l => l.StartsWith("Posture: slouching"));
+    Assert.Contains(_log.InfoLines, l => l.StartsWith("Posture: slouching", StringComparison.Ordinal));
   }
 
   [Fact]
@@ -283,5 +283,4 @@ public sealed class PostureMonitorTests : IDisposable
 
     Assert.Equal("ended", _events.Last());
   }
-
 }

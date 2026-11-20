@@ -27,7 +27,7 @@ namespace Waddle.UITests
       return key?.GetValue("Waddle") as string;
     }
 
-    private Button FindButton(Window window, string name)
+    private static Button FindButton(Window window, string name)
     {
       var button = window.FindFirstDescendant(cf => cf.ByName(name))?.AsButton();
       Assert.NotNull(button);
@@ -41,14 +41,14 @@ namespace Waddle.UITests
       return WaitForWindowByTitle(SettingsTitle, 10);
     }
 
-    private CheckBox FindStartupCheckbox(Window settings)
+    private static CheckBox FindStartupCheckbox(Window settings)
     {
       var box = settings.FindFirstDescendant(cf => cf.ByName(StartupCheckboxText))?.AsCheckBox();
       Assert.NotNull(box);
       return box!;
     }
 
-    private CheckBox FindAutoTimerCheckbox(Window settings)
+    private static CheckBox FindAutoTimerCheckbox(Window settings)
     {
       var box = settings.FindFirstDescendant(cf => cf.ByName(AutoTimerCheckboxText))?.AsCheckBox();
       Assert.NotNull(box);
@@ -288,6 +288,7 @@ namespace Waddle.UITests
     }
 
     [Fact]
+
     public void SettingsChoice_IsKeptAfterRestartingTheApp()
     {
       SeedCalibration(0.25);
@@ -296,9 +297,7 @@ namespace Waddle.UITests
       FindStartupCheckbox(settings).Toggle();
       Assert.NotNull(Retry.WhileNull(() => ReadStartupEntry(), timeout: TimeSpan.FromSeconds(5)).Result);
       FindButton(settings, "Done").Invoke();
-
       RestartApp();
-
       var reopened = OpenSettingsDialog(_app!.GetMainWindow(_automation!, TimeSpan.FromSeconds(10))!);
       Assert.True(FindStartupCheckbox(reopened).IsChecked);
       FindButton(reopened, "Done").Invoke();

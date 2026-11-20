@@ -30,7 +30,6 @@ public class DatabaseInitializer
   }
 
   /// Safe to call every time the app starts: it only creates what is missing.
-  /// Safe to call every time the app starts: it only creates what is missing.
   public void Initialize()
   {
     using var connection = OpenConnection();
@@ -94,7 +93,7 @@ public class DatabaseInitializer
     command.ExecuteNonQuery();
   }
 
-  private void SeedData(SqliteConnection connection)
+  private static void SeedData(SqliteConnection connection)
   {
     var seedPath = Path.Combine(AppContext.BaseDirectory, "Database", "seed_oct_2026.sql");
     if (!File.Exists(seedPath))

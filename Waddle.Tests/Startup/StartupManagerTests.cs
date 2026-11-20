@@ -79,7 +79,7 @@ public sealed class StartupManagerTests : IDisposable
   [Fact]
   public void Set_ReturnsFalse_WhenWindowsRefusesTheWrite()
   {
-    _scope.MakeRegistryRefuseWrites();
+    StartupTestScope.MakeRegistryRefuseWrites();
 
     Assert.False(StartupManager.Set(true));
     Assert.False(StartupManager.IsEnabled());      // and IsEnabled doesn't throw either

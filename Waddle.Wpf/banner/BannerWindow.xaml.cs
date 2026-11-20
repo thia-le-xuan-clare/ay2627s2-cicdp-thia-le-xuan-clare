@@ -69,7 +69,7 @@ public partial class BannerWindow : Window
   {
     base.OnSourceInitialized(e);
     var handle = new WindowInteropHelper(this).Handle;
-    SetWindowLong(handle, GwlExStyle, GetWindowLong(handle, GwlExStyle) | WsExNoActivate | WsExToolWindow);
+    _ = SetWindowLong(handle, GwlExStyle, GetWindowLong(handle, GwlExStyle) | WsExNoActivate | WsExToolWindow);
   }
 
   // the window sizes itself to its text, so re-centre whenever the size changes
