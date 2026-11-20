@@ -89,7 +89,7 @@ jobs:
       run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Waddle-Wpf-App-${{ matrix.configuration }}
         path: ./publish_output/${{ matrix.configuration }}
