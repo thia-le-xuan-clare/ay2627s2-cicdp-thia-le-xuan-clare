@@ -165,7 +165,7 @@ classDiagram
     %% Interface Implementations
     OpenCvCameraService ..|> ICameraService : implements
     SqliteCalibrationStore ..|> ICalibrationStore : implements
-    SqliteDailyTimeStore ..|> IWarningEventStore : implements
+    SqliteDailyTimeStore ..|> IDailyTimeStore : implements
     SqliteWarningEventStore ..|> IWarningEventStore : implements
     FileLogService ..|> ILogService : implements
 
@@ -189,5 +189,3 @@ classDiagram
     TimeTracker --> IDailyTimeStore : persists seconds via
     PostureMonitor --> ILogService : logs events via
 ```
-
-
