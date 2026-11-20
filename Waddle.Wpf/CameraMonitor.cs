@@ -220,8 +220,10 @@ public sealed class CameraMonitor : INotifyPropertyChanged
 
       // "ready" = the first NORMAL-looking frame. Some webcams send black frames while they warm up,
       // so dark frames are simply waited out.
-      var winner = await Task.WhenAny(first.Task, Task.Delay(8000));
-      if (winner == first.Task && first.Task.Result)
+      using var delayCts = new CancellationTokenSource();
+      var winner = await Task.WhenAny(first.Task, Task.Delay(8000, delayCts.Token));
+      await delayCts.CancelAsync();
+      if (winner == first.Task && await first.Task)
       {
         Log?.Security("Camera on");
         return true;
