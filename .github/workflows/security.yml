@@ -16,7 +16,7 @@ jobs:
     name: Vulnerable NuGet packages
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: actions/setup-dotnet@v6
       with:
@@ -40,7 +40,7 @@ jobs:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0   # scan the full history, not just the latest commit
 
@@ -55,7 +55,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: actions/setup-dotnet@v6
       with:
