@@ -26,12 +26,12 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
     - name: Install .NET SDK
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: |
           8.0.x
@@ -73,7 +73,7 @@ jobs:
         --results-directory ./TestResults
 
     - name: Publish Test Results
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v3
       if: always()
       with:
         name: Waddle Tests (${{ matrix.configuration }})
@@ -81,7 +81,7 @@ jobs:
         reporter: dotnet-trx
 
     - name: Code Coverage Summary
-      uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+      uses: danielpalme/ReportGenerator-GitHub-Action@5.6.0
       if: matrix.configuration == 'Release'
       with:
         reports: './TestResults/**/coverage.cobertura.xml'
@@ -96,7 +96,7 @@ jobs:
       run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Waddle-Wpf-App-${{ matrix.configuration }}
         path: ./publish_output/${{ matrix.configuration }}
