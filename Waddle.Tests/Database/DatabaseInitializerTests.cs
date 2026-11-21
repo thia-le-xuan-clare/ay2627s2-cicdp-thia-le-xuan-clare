@@ -74,4 +74,12 @@ public sealed class DatabaseInitializerTests : IDisposable
     Assert.Throws<SqliteException>(() =>
         _temp.Execute("INSERT INTO daily_history (date, seconds_good) VALUES ('2026-11-12', 20)"));
   }
+
+  [Fact]
+  public void Seed_LoadsTheDemoData()
+  {
+    _temp.Db.Seed();
+
+    Assert.True(_temp.Scalar<int>("SELECT COUNT(*) FROM daily_history") > 0);
+  }
 }

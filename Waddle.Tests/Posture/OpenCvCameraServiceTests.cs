@@ -62,4 +62,73 @@ public class OpenCvCameraServiceTests
     Assert.Null(ex);
     Assert.False(service.IsRunning);
   }
+
+  [Fact]
+  public void Dispose_WhenNeverStarted_DoesNotThrow()
+  {
+    var service = new OpenCvCameraService("any-path.xml");
+
+    var ex = Record.Exception(() => service.Dispose());
+
+    Assert.Null(ex);
+  }
+
+  [Fact]
+  public void Stop_CalledTwice_DoesNotThrow()
+  {
+    var service = new OpenCvCameraService(Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.xml"));
+    service.Start();
+
+    var ex = Record.Exception(() =>
+    {
+      service.Stop();
+      service.Stop();
+    });
+
+    Assert.Null(ex);
+    Assert.False(service.IsRunning);
+  }
+
+  [Fact]
+  public void Start_WhenCascadeFileMissing_LogsAWarning()
+  {
+    var log = new RecordingLog();
+    var service = new OpenCvCameraService(Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.xml"), log);
+    using var failedSignal = new ManualResetEventSlim(false);
+    service.Failed += _ => failedSignal.Set();
+
+    service.Start();
+
+    Assert.True(failedSignal.Wait(TimeSpan.FromSeconds(3)));
+    service.Stop();
+    Assert.Contains(log.InfoLines, l => l.StartsWith("WARNING: camera: Face model not found", StringComparison.Ordinal));
+    Assert.Contains("Camera stopped", log.InfoLines);
+  }
+
+  [Fact]
+  public void Start_WithAnUnusableCascadeFile_RaisesFailedInsteadOfCrashing()
+  {
+    // File exists, so the first check passes. With no webcam, OpenCamera() returns null ("Cannot open any camera").
+    // With a webcam, the empty file is rejected as a face model. Either way Failed must fire and nothing may throw.
+    string cascade = Path.Combine(Path.GetTempPath(), $"empty_cascade_{Guid.NewGuid()}.xml");
+    File.WriteAllText(cascade, "<not-a-cascade/>");
+
+    try
+    {
+      var service = new OpenCvCameraService(cascade);
+      string? error = null;
+      using var failedSignal = new ManualResetEventSlim(false);
+      service.Failed += msg => { error = msg; failedSignal.Set(); };
+
+      service.Start();
+
+      Assert.True(failedSignal.Wait(TimeSpan.FromSeconds(10)), "Expected Failed to fire.");
+      Assert.False(string.IsNullOrWhiteSpace(error));
+      service.Stop();
+    }
+    finally
+    {
+      File.Delete(cascade);
+    }
+  }
 }

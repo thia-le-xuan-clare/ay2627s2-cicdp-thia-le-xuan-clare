@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,6 +10,7 @@ using Waddle.Infrastructure.Data;
 
 namespace Waddle.Wpf;
 
+[ExcludeFromCodeCoverage]
 public partial class App : Application, IDisposable
 {
   public static IServiceProvider Services { get; private set; } = null!;

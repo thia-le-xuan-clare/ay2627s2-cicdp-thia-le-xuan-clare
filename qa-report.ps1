@@ -12,7 +12,8 @@ param(
   [string]$UnitProject = 'Waddle.Tests/Waddle.Tests.csproj',
   [string]$E2EProject = 'Waddle.UITests/Waddle.UITests.csproj',
   [string]$OutFile = 'qa-report.html',
-  [switch]$SkipE2E
+  [switch]$SkipE2E,
+  [double]$MinCoverage = 80      # line AND branch coverage must reach this (percent)
 )
 
 $ErrorActionPreference = 'Continue'
@@ -92,7 +93,73 @@ Add-Result 'Format' 'dotnet format --verify-no-changes' ($(if ($r.Code -eq 0) { 
 
 # ---------------------------------------------------------------- 3. UNIT + INTEGRATION
 Write-Host "`n== 3. Unit and integration tests ==" -ForegroundColor Cyan
-Invoke-Tests 'Unit & Integration' 'xUnit (excluding Security namespace)' $UnitProject 'FullyQualifiedName!~Waddle.Tests.Security' 'unit' -Coverage
+Invoke-Tests 'Unit & Integration' 'xUnit (excluding Security namespace)' $UnitProject 'FullyQualifiedName!~Waddle.Tests.Security' 'unit'
+
+# Coverage is measured over ALL of Waddle.Tests (Security tests included), the same way the CI job does it.
+Write-Host "`n== 3b. Code coverage (all unit tests, same as CI) ==" -ForegroundColor Cyan
+$covDir = Join-Path $resultsDir 'coverage'
+$r = Invoke-Dotnet @('test', $UnitProject, '--configuration', 'Release', '--results-directory', $covDir, '--collect:XPlat Code Coverage')
+$cov = Get-ChildItem $covDir -Recurse -Filter coverage.cobertura.xml -ErrorAction SilentlyContinue |
+  Sort-Object { [int](([xml](Get-Content $_.FullName -Raw)).coverage.'lines-valid') } -Descending |
+  Select-Object -First 1
+$covName = "Coverage (line and branch >= $MinCoverage%)"
+if (-not $cov) {
+  Add-Result 'Coverage' $covName 'FAIL' 'No coverage file produced (build or run error)' $r.Output $r.Seconds
+} else {
+  $root = ([xml](Get-Content $cov.FullName -Raw)).coverage
+  $covLine = [double]$root.'line-rate' * 100
+  $covBranch = [double]$root.'branch-rate' * 100
+  $covOk = ($covLine -ge $MinCoverage -and $covBranch -ge $MinCoverage)
+  $covSum = "line {0:N1}% ({1} of {2}), branch {3:N1}% ({4} of {5})" -f $covLine, $root.'lines-covered', $root.'lines-valid', $covBranch, $root.'branches-covered', $root.'branches-valid'
+  if ($r.Code -ne 0) { $covSum += ' (some tests failed during this run)' }
+
+  # per-class breakdown (nested/compiler-generated classes are folded into their parent class)
+  $byClass = @{}
+  foreach ($c in $root.SelectNodes('.//class')) {
+    $name = ($c.name -split '/')[0]
+    if (-not $byClass.ContainsKey($name)) {
+      $byClass[$name] = [pscustomobject]@{ Name = $name; Lines = 0; LinesCov = 0; Br = 0; BrCov = 0 }
+    }
+    $e = $byClass[$name]
+    foreach ($l in $c.SelectNodes('lines/line')) {
+      $e.Lines++
+      if ([int]$l.hits -gt 0) { $e.LinesCov++ }
+      if ($l.branch -eq 'True' -and $l.'condition-coverage' -match '\((\d+)/(\d+)\)') {
+        $e.BrCov += [int]$Matches[1]
+        $e.Br += [int]$Matches[2]
+      }
+    }
+  }
+  $table = $byClass.Values | ForEach-Object {
+    [pscustomobject]@{
+      Class            = $_.Name
+      'Line %'         = $(if ($_.Lines -gt 0) { [math]::Round(100.0 * $_.LinesCov / $_.Lines, 1) } else { 100 })
+      'Branch %'       = $(if ($_.Br -gt 0) { [math]::Round(100.0 * $_.BrCov / $_.Br, 1) } else { 'n/a' })
+      'Branches missed' = $_.Br - $_.BrCov
+      'Lines missed'   = $_.Lines - $_.LinesCov
+    }
+  } | Sort-Object @{ Expression = 'Branches missed'; Descending = $true }, @{ Expression = 'Lines missed'; Descending = $true }
+  # Full ReportGenerator text summary (same as running reportgenerator by hand).
+  # It goes only into the HTML 'details' box, not the terminal.
+  if (-not (Get-Command reportgenerator -ErrorAction SilentlyContinue)) {
+    & dotnet tool install -g dotnet-reportgenerator-globaltool 2>&1 | Out-Null
+    $env:Path += ';' + (Join-Path $env:USERPROFILE '.dotnet\tools')
+  }
+  $rgDir = Join-Path $resultsDir 'CoverageReport'
+  if (Get-Command reportgenerator -ErrorAction SilentlyContinue) {
+    & reportgenerator "-reports:$covDir\**\coverage.cobertura.xml" "-targetdir:$rgDir" '-reporttypes:TextSummary' 2>&1 | Out-Null
+  }
+  $summaryFile = Join-Path $rgDir 'Summary.txt'
+  if (Test-Path $summaryFile) {
+    $covDetails = (Get-Content $summaryFile -Raw).TrimEnd()
+  } else {
+    # fallback if reportgenerator could not be installed: the built-in per-class table
+    $covDetails = "All classes (most missed branches first):`n" +
+      (($table | Format-Table -AutoSize | Out-String -Width 220).TrimEnd())
+  }
+
+  Add-Result 'Coverage' $covName ($(if ($covOk) { 'PASS' } else { 'FAIL' })) $covSum $covDetails $r.Seconds
+}
 
 # ---------------------------------------------------------------- 4. SECURITY
 Write-Host "`n== 4. Security ==" -ForegroundColor Cyan
@@ -154,6 +221,9 @@ $rows = foreach ($r in $results) {
   $d = if ($r.Details) { "<details><summary>details</summary><pre>$(& $enc $r.Details)</pre></details>" } else { '' }
   "<tr><td>$(& $enc $r.Stage)</td><td>$(& $enc $r.Check)</td><td><span class=""b $($r.Status.ToLower())"">$($r.Status)</span></td><td>$(& $enc $r.Summary)$d</td><td class=""n"">$($r.Seconds)s</td></tr>"
 }
+$pass = @($results | Where-Object Status -eq 'PASS').Count
+$fail = @($results | Where-Object Status -eq 'FAIL').Count
+$skip = @($results | Where-Object Status -eq 'SKIP').Count
 $overall = if ($fail) { 'FAILED' } else { 'PASSED' }
 $cls = if ($fail) { 'fail' } else { 'pass' }
 $commit = (& git rev-parse --short HEAD 2>$null)
@@ -175,7 +245,7 @@ h1{margin:0 0 .25rem}.meta{color:var(--mut);margin-bottom:1.25rem}
 th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
 .b{font-weight:600;font-size:.8rem;border:1px solid currentColor;border-radius:99px;padding:.1rem .55rem}
 .n{color:var(--mut);white-space:nowrap}
-pre{white-space:pre-wrap;background:var(--card);padding:.5rem;border-radius:6px;max-height:300px;overflow:auto;font-size:.8rem}
+pre{white-space:pre-wrap;background:var(--card);padding:.5rem;border-radius:6px;max-height:600px;overflow:auto;font-size:.8rem}
 </style></head><body>
 <h1>Waddle QA Report</h1>
 <div class="meta">$(Get-Date -Format 'yyyy-MM-dd HH:mm') &middot; commit $commit &middot; overall <b class="$cls">$overall</b></div>
