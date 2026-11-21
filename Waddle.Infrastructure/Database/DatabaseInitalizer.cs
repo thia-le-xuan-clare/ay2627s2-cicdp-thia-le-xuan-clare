@@ -92,17 +92,4 @@ public class DatabaseInitializer
     command.CommandText = File.ReadAllText(seedPath);
     command.ExecuteNonQuery();
   }
-
-  private static void SeedData(SqliteConnection connection)
-  {
-    var seedPath = Path.Combine(AppContext.BaseDirectory, "Database", "seed_oct_2026.sql");
-    if (!File.Exists(seedPath))
-    {
-      throw new FileNotFoundException($"Seed file not found at: {seedPath}");
-    }
-
-    using var command = connection.CreateCommand();
-    command.CommandText = File.ReadAllText(seedPath);
-    command.ExecuteNonQuery();
-  }
 }

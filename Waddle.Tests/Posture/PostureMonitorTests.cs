@@ -283,4 +283,170 @@ public sealed class PostureMonitorTests : IDisposable
 
     Assert.Equal("ended", _events.Last());
   }
+
+  // ---------- extra branch coverage ----------
+
+  [Fact]
+  public void Check_WhenThereIsNoStore_DoesNothing()
+  {
+    _wpf.Invoke(() =>
+    {
+      StartSession();
+      Posture.Store = null;
+      Face(BigFace);
+
+      Check();
+
+      Assert.False(Posture.IsSlouching);
+    });
+
+    Assert.Empty(_events);
+  }
+
+  [Fact]
+  public void Check_WhenTheSavedCalibrationHasNoFaceSize_NeverWarns()
+  {
+    _wpf.Invoke(() =>
+    {
+      StartSession();
+      _store.Saved = new CalibrationData(0, new DateTime(2026, 11, 13, 9, 0, 0));
+      Face(BigFace);
+      LeanedInFor(TimeSpan.FromMinutes(1));
+
+      Check();
+
+      Assert.False(Posture.IsSlouching);
+      Assert.Null(Private.Get<double?>(Posture, "_baseline"));
+    });
+  }
+
+  [Fact]
+  public void Check_LoadsTheCalibrationOnlyOnce()
+  {
+    _wpf.Invoke(() =>
+    {
+      StartSession();
+      Face(Baseline);
+
+      Check();
+      Check();
+
+      Assert.Equal(1, _store.LoadCalls);
+    });
+  }
+
+  [Fact]
+  public void ReloadBaseline_MakesTheNextCheckReadTheCalibrationAgain()
+  {
+    _wpf.Invoke(() =>
+    {
+      StartSession();
+      Face(Baseline);
+      Check();
+
+      Posture.ReloadBaseline();
+      Check();
+
+      Assert.Equal(2, _store.LoadCalls);
+    });
+  }
+
+  [Fact]
+  public void Check_WhenNoFaceIsSeen_AndNotSlouching_ClearsTheLeanInClock()
+  {
+    _wpf.Invoke(() =>
+    {
+      StartSession();
+      Face(BigFace);
+      Check();                                        // starts the "too big" clock
+      Face(0, count: 0);                              // face gone
+
+      Check();
+
+      Assert.Null(Private.Get<DateTime?>(Posture, "_bigSince"));
+      Assert.False(Posture.IsSlouching);
+    });
+  }
+
+  [Fact]
+  public void Check_WhenTheFaceDisappearsWhileSlouching_TheWarningStaysAndTheCountdownKeepsRunning()
+  {
+    _wpf.Invoke(() =>
+    {
+      Slouch();
+      Private.Set(Posture, "_slouchStart", DateTime.Now - TimeSpan.FromSeconds(5.5));
+      Face(0, count: 0);                              // stood up: face gone
+
+      Check();
+
+      Assert.True(Posture.IsSlouching);               // leaving the chair is not "sitting up"
+    });
+
+    Assert.Equal("tick:15", _events.Last());
+    Assert.DoesNotContain("ended", _events);
+  }
+
+  [Fact]
+  public void Check_WhenTheFaceIsDetectedButHasNoSize_IsTreatedAsNoFace()
+  {
+    _wpf.Invoke(() =>
+    {
+      StartSession();
+      Face(0, count: 1);                              // count says 1, ratio says 0
+
+      Check();
+
+      Assert.False(Posture.IsSlouching);
+      Assert.Null(Private.Get<DateTime?>(Posture, "_bigSince"));
+    });
+  }
+
+  [Fact]
+  public void Check_LeaningBackInWhileRecovering_RestartsTheSitUpClock()
+  {
+    _wpf.Invoke(() =>
+    {
+      Slouch();
+      Face(Baseline);
+      Private.Set(Posture, "_smooth", Baseline);
+      Check();                                        // recovering: sit-up clock starts
+      Assert.NotNull(Private.Get<DateTime?>(Posture, "_normalSince"));
+
+      Face(BigFace);
+      Private.Set(Posture, "_smooth", BigFace);
+      Check();                                        // leaned in again
+
+      Assert.True(Posture.IsSlouching);
+      Assert.Null(Private.Get<DateTime?>(Posture, "_normalSince"));
+    });
+  }
+
+  [Fact]
+  public void Check_SittingUpButNotForLongEnough_KeepsTheWarning()
+  {
+    _wpf.Invoke(() =>
+    {
+      Slouch();
+      Face(Baseline);
+      Private.Set(Posture, "_smooth", Baseline);
+      Private.Set(Posture, "_normalSince", DateTime.Now - TimeSpan.FromMilliseconds(500));
+
+      Check();
+
+      Assert.True(Posture.IsSlouching);
+    });
+  }
+
+  [Fact]
+  public void Check_WhenSessionIsNotActive_AndNothingWasSlouching_RaisesNoEndedEvent()
+  {
+    _wpf.Invoke(() =>
+    {
+      Face(BigFace);
+
+      Check();                                        // no session: Reset() -> EndSlouch() returns early
+    });
+
+    Assert.DoesNotContain("ended", _events);
+  }
 }

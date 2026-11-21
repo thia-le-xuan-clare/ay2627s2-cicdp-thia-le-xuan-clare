@@ -15,26 +15,92 @@ h1{margin:0 0 .25rem}.meta{color:var(--mut);margin-bottom:1.25rem}
 th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
 .b{font-weight:600;font-size:.8rem;border:1px solid currentColor;border-radius:99px;padding:.1rem .55rem}
 .n{color:var(--mut);white-space:nowrap}
-pre{white-space:pre-wrap;background:var(--card);padding:.5rem;border-radius:6px;max-height:300px;overflow:auto;font-size:.8rem}
+pre{white-space:pre-wrap;background:var(--card);padding:.5rem;border-radius:6px;max-height:600px;overflow:auto;font-size:.8rem}
 </style></head><body>
 <h1>Waddle QA Report</h1>
-<div class="meta">2026-11-21 01:08 &middot; commit 3f0532a &middot; overall <b class="pass">PASSED</b></div>
+<div class="meta">2026-11-21 22:59 &middot; commit e18352e &middot; overall <b class="pass">PASSED</b></div>
 <div class="sum">
-<div class="card"><b class="pass"></b>passed</div>
-<div class="card"><b class="fail"></b>failed</div>
-<div class="card"><b class="skip"></b>skipped</div>
+<div class="card"><b class="pass">9</b>passed</div>
+<div class="card"><b class="fail">0</b>failed</div>
+<div class="card"><b class="skip">0</b>skipped</div>
 </div>
 <div class="wrap"><table>
 <thead><tr><th>Stage</th><th>Check</th><th>Status</th><th>Result</th><th>Time</th></tr></thead>
 <tbody>
-<tr><td>Lint</td><td>Roslyn + .NET analyzers (warnings as errors)</td><td><span class="b pass">PASS</span></td><td>No analyzer warnings or errors</td><td class="n">15.3s</td></tr>
-<tr><td>Format</td><td>dotnet format --verify-no-changes</td><td><span class="b pass">PASS</span></td><td>All files correctly formatted</td><td class="n">28.6s</td></tr>
-<tr><td>Unit &amp; Integration</td><td>xUnit (excluding Security namespace)</td><td><span class="b pass">PASS</span></td><td>231/231 passed, 0 failed, 0 skipped, line coverage 48.7%</td><td class="n">10.2s</td></tr>
-<tr><td>Security</td><td>Security tests (log/SQL injection, schema integrity)</td><td><span class="b pass">PASS</span></td><td>9/9 passed, 0 failed, 0 skipped</td><td class="n">6.2s</td></tr>
-<tr><td>Security</td><td>Vulnerable NuGet packages (incl. transitive)</td><td><span class="b pass">PASS</span></td><td>None found</td><td class="n">15s</td></tr>
-<tr><td>Security</td><td>Secret scan (gitleaks, full git history)</td><td><span class="b pass">PASS</span></td><td>No secrets detected</td><td class="n">1.4s</td></tr>
-<tr><td>Security</td><td>CodeQL (open alerts on GitHub)</td><td><span class="b pass">PASS</span></td><td>0 open alerts</td><td class="n">0.8s</td></tr>
-<tr><td>E2E</td><td>FlaUI UI automation</td><td><span class="b pass">PASS</span></td><td>23/23 passed, 0 failed, 0 skipped</td><td class="n">54.3s</td></tr>
+<tr><td>Lint</td><td>Roslyn + .NET analyzers (warnings as errors)</td><td><span class="b pass">PASS</span></td><td>No analyzer warnings or errors</td><td class="n">12.3s</td></tr>
+<tr><td>Format</td><td>dotnet format --verify-no-changes</td><td><span class="b pass">PASS</span></td><td>All files correctly formatted</td><td class="n">15.4s</td></tr>
+<tr><td>Unit &amp; Integration</td><td>xUnit (excluding Security namespace)</td><td><span class="b pass">PASS</span></td><td>409/409 passed, 0 failed, 0 skipped</td><td class="n">33.6s</td></tr>
+<tr><td>Coverage</td><td>Coverage (line and branch &gt;= 80%)</td><td><span class="b pass">PASS</span></td><td>line 95.4% (1622 of 1700), branch 83.2% (824 of 990)<details><summary>details</summary><pre>Summary
+  Generated on: 21/11/2026 - 10:58:35 pm
+  Coverage date: 21/11/2026 - 10:58:34 pm
+  Parser: Cobertura
+  Assemblies: 3
+  Classes: 40
+  Files: 41
+  Line coverage: 95.4%
+  Covered lines: 1622
+  Uncovered lines: 78
+  Coverable lines: 1700
+  Total lines: 4457
+  Branch coverage: 83.4% (816 of 978)
+  Covered branches: 816
+  Total branches: 978
+  Method coverage: 97.2% (320 of 329)
+  Full method coverage: 91.7% (302 of 329)
+  Covered methods: 320
+  Fully covered methods: 302
+  Total methods: 329
+
+Waddle.Core                                             100%
+  Waddle.Core.CalibrationData                           100%
+  Waddle.Core.DailyWarningSummary                       100%
+  Waddle.Core.DayWarningStats                           100%
+  Waddle.Core.FaceFrame                                 100%
+  Waddle.Core.LevelOutcomeCounts                        100%
+
+Waddle.Infrastructure                                  88.2%
+  Waddle.Infrastructure.Data.DatabaseInitializer        100%
+  Waddle.Infrastructure.Data.SqliteCalibrationStore     100%
+  Waddle.Infrastructure.Data.SqliteDailyTimeStore       100%
+  Waddle.Infrastructure.Data.SqliteWarningEventStore    100%
+  Waddle.Infrastructure.FileLogService                  100%
+  Waddle.Infrastructure.OpenCvCameraService            53.8%
+
+Waddle.Wpf                                             96.9%
+  Waddle.Wpf.BannerService                             97.2%
+  Waddle.Wpf.BannerWindow                               100%
+  Waddle.Wpf.CalendarDay                                100%
+  Waddle.Wpf.CalendarWeek                               100%
+  Waddle.Wpf.CalibrationViewModel                       100%
+  Waddle.Wpf.CalibrationWindow                         95.4%
+  Waddle.Wpf.CameraMonitor                               97%
+  Waddle.Wpf.DayCell                                    100%
+  Waddle.Wpf.DayStatsViewModel                          100%
+  Waddle.Wpf.DuckAnimator                              95.7%
+  Waddle.Wpf.HistoryCalendarViewModel                   100%
+  Waddle.Wpf.HistoryViewModel                           100%
+  Waddle.Wpf.IdleReminder                               100%
+  Waddle.Wpf.MainViewModel                              100%
+  Waddle.Wpf.MainWindow                                93.3%
+  Waddle.Wpf.MonitorTuning                              100%
+  Waddle.Wpf.OverlayState                               100%
+  Waddle.Wpf.PieChartModel                              100%
+  Waddle.Wpf.PieSlice                                   100%
+  Waddle.Wpf.PostureMonitor                            98.6%
+  Waddle.Wpf.PostureOverlayWindow                      88.8%
+  Waddle.Wpf.PostureTuning                              100%
+  Waddle.Wpf.SettingsPanel                              100%
+  Waddle.Wpf.SettingsWindow                             100%
+  Waddle.Wpf.StartupManager                            97.3%
+  Waddle.Wpf.StartupPromptWindow                        100%
+  Waddle.Wpf.TimeTracker                               97.3%
+  Waddle.Wpf.WidgetWindow                              98.2%
+  XamlGeneratedNamespace.GeneratedInternalTypeHelper      0%</pre></details></td><td class="n">35.1s</td></tr>
+<tr><td>Security</td><td>Security tests (log/SQL injection, schema integrity)</td><td><span class="b pass">PASS</span></td><td>9/9 passed, 0 failed, 0 skipped</td><td class="n">6.7s</td></tr>
+<tr><td>Security</td><td>Vulnerable NuGet packages (incl. transitive)</td><td><span class="b pass">PASS</span></td><td>None found</td><td class="n">18.7s</td></tr>
+<tr><td>Security</td><td>Secret scan (gitleaks, full git history)</td><td><span class="b pass">PASS</span></td><td>No secrets detected</td><td class="n">1.2s</td></tr>
+<tr><td>Security</td><td>CodeQL (open alerts on GitHub)</td><td><span class="b pass">PASS</span></td><td>0 open alerts</td><td class="n">0.9s</td></tr>
+<tr><td>E2E</td><td>FlaUI UI automation</td><td><span class="b pass">PASS</span></td><td>23/23 passed, 0 failed, 0 skipped</td><td class="n">56.4s</td></tr>
 </tbody>
 </table></div>
 </body></html>
