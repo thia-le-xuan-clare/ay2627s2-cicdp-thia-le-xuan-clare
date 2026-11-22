@@ -17,7 +17,7 @@ jobs:
       matrix:
         configuration: [Debug, Release]
 
-    runs-on: windows-latest  
+    runs-on: windows-latest
 
     env:
       Solution_Name: Waddle.slnx
@@ -100,3 +100,32 @@ jobs:
       with:
         name: Waddle-Wpf-App-${{ matrix.configuration }}
         path: ./publish_output/${{ matrix.configuration }}
+
+  installer:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - name: Install .NET SDK
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Publish self-contained app
+      run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration Release --runtime win-x64 --self-contained true --output ./publish
+
+    - name: Install Inno Setup
+      run: choco install innosetup -y --no-progress
+
+    - name: Build installer
+      run: iscc /DMyAppVersion=1.0.${{ github.run_number }} installer\waddle.iss
+
+    - name: Upload installer
+      uses: actions/upload-artifact@v7
+      with:
+        name: Waddle-Installer
+        path: installer/output/*.exe

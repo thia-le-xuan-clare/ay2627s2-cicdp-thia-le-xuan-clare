@@ -483,3 +483,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+#Ensure that build output is not committed
+publish/
+Installer/output/
