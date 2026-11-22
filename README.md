@@ -100,6 +100,19 @@ dotnet format Waddle.slnx                       # fix automatically
 
 Formatting rules live in [`.editorconfig`](.editorconfig).
 
+### Build the installer
+
+Requires [Inno Setup](https://jrsoftware.org/isdl.php).
+
+1. Publish the app from the repo root:
+   ```powershell
+   dotnet publish Waddle.Wpf/Waddle.Wpf.csproj -c Release -r win-x64 --self-contained true -o publish
+   ```
+2. Open `Installer/waddle.iss` in the Inno Setup Compiler and press **Ctrl+F9** (Build > Compile).
+3. The installer is written to `Installer/output/WaddleSetup-1.0.0.exe`.
+
+CI also builds the installer on every push to `main` and uploads it as the `Waddle-Installer` artifact.
+
 ## Privacy and security
 
 - Camera frames are processed in memory for posture detection and are not saved to disk
