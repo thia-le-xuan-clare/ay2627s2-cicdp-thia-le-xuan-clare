@@ -1,4 +1,4 @@
-name: .NET Core Desktop
+name: .NET Core Desktop CI/CD
 
 on:
   push:
@@ -8,124 +8,197 @@ on:
 
 permissions:
   checks: write
-  contents: read
+  contents: write # Needed if you include the release job at the end
   pull-requests: write
 
+env:
+  Solution_Name: Waddle.slnx
+  Test_Project_Path: Waddle.Tests/Waddle.Tests.csproj
+  UI_Test_Project_Path: Waddle.UITests/Waddle.UITests.csproj
+
 jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.Solution_Name }}
+
+      - name: Verify code formatting
+        run: dotnet format ${{ env.Solution_Name }} --verify-no-changes --no-restore
+
   build:
+    name: Build Solution
+    needs: lint
     strategy:
       matrix:
         configuration: [Debug, Release]
-
     runs-on: windows-latest
-
-    env:
-      Solution_Name: Waddle.slnx
-      Test_Project_Path: Waddle.Tests/Waddle.Tests.csproj
-      UI_Test_Project_Path: Waddle.UITests/Waddle.UITests.csproj
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v7
 
-    - name: Install .NET SDK
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-    - name: Restore the application
-      run: dotnet restore ${{ env.Solution_Name }}
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.Solution_Name }}
 
-    - name: Verify code formatting
-      if: matrix.configuration == 'Debug'
-      run: dotnet format ${{ env.Solution_Name }} --verify-no-changes --no-restore
+      - name: Build solution (strict analyzers)
+        run: >
+          dotnet build ${{ env.Solution_Name }}
+          --configuration ${{ matrix.configuration }}
+          --no-restore
+          -warnaserror
+          -p:EnableNETAnalyzers=true
+          -p:AnalysisLevel=latest-recommended
+          -p:EnforceCodeStyleInBuild=true
 
-    - name: Build solution (with strict lint & code style checks)
-      run: >
-        dotnet build ${{ env.Solution_Name }}
-        --configuration ${{ matrix.configuration }}
-        --no-restore
-        -warnaserror
-        -p:EnableNETAnalyzers=true
-        -p:AnalysisLevel=latest-recommended
-        -p:EnforceCodeStyleInBuild=true
+      - name: Publish Binaries
+        run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
 
-    - name: Execute unit and integration tests
-      run: >
-        dotnet test ${{ env.Test_Project_Path }}
-        --configuration ${{ matrix.configuration }}
-        --no-build
-        --logger "trx;LogFileName=test-results-${{ matrix.configuration }}.trx"
-        --collect:"XPlat Code Coverage"
-        --results-directory ./TestResults
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: Waddle-Wpf-App-${{ matrix.configuration }}
+          path: ./publish_output/${{ matrix.configuration }}
 
-    - name: Execute WPF UI automation tests
-      if: matrix.configuration == 'Release'
-      run: >
-        dotnet test ${{ env.UI_Test_Project_Path }}
-        --configuration ${{ matrix.configuration }}
-        --no-build
-        --logger "trx;LogFileName=ui-test-results.trx"
-        --results-directory ./TestResults
+  unit-tests:
+    name: Unit & Integration Tests
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-    - name: Publish Test Results
-      uses: dorny/test-reporter@v3
-      if: always()
-      with:
-        name: Waddle Tests (${{ matrix.configuration }})
-        path: './TestResults/*.trx'
-        reporter: dotnet-trx
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-    - name: Code Coverage Summary
-      uses: danielpalme/ReportGenerator-GitHub-Action@5.6.0
-      if: matrix.configuration == 'Release'
-      with:
-        reports: './TestResults/**/coverage.cobertura.xml'
-        targetdir: './CoverageReport'
-        reporttypes: 'MarkdownSummaryGithub'
+      - name: Execute unit and integration tests
+        run: >
+          dotnet test ${{ env.Test_Project_Path }}
+          --configuration Release
+          --logger "trx;LogFileName=test-results-Release.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
 
-    - name: Publish Coverage to Job Summary
-      if: matrix.configuration == 'Release'
-      run: Get-Content ./CoverageReport/SummaryGithub.md >> $env:GITHUB_STEP_SUMMARY
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v3
+        if: always()
+        with:
+          name: Waddle Unit Tests
+          path: './TestResults/*.trx'
+          reporter: dotnet-trx
 
-    - name: Publish Binaries
-      run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration ${{ matrix.configuration }} --output ./publish_output/${{ matrix.configuration }} --no-build
+      - name: Code Coverage Summary
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.6.0
+        with:
+          reports: './TestResults/**/coverage.cobertura.xml'
+          targetdir: './CoverageReport'
+          reporttypes: 'MarkdownSummaryGithub'
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: Waddle-Wpf-App-${{ matrix.configuration }}
-        path: ./publish_output/${{ matrix.configuration }}
+      - name: Publish Coverage to Job Summary
+        run: Get-Content ./CoverageReport/SummaryGithub.md >> $env:GITHUB_STEP_SUMMARY
+
+  e2e-tests:
+    name: E2E / UI Automation Tests
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Build solution for UI tests
+        run: dotnet build ${{ env.Solution_Name }} --configuration Release
+
+      - name: Execute WPF UI automation tests
+        run: >
+          dotnet test ${{ env.UI_Test_Project_Path }}
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=ui-test-results.trx"
+          --results-directory ./TestResults
+
+      - name: Publish UI Test Results
+        uses: dorny/test-reporter@v3
+        if: always()
+        with:
+          name: Waddle E2E UI Tests
+          path: './TestResults/*.trx'
+          reporter: dotnet-trx
 
   installer:
-    needs: build
+    name: Package Windows Installer
+    needs: [unit-tests, e2e-tests]
     if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v7
 
-    - name: Install .NET SDK
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: 10.0.x
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
 
-    - name: Publish self-contained app
-      run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration Release --runtime win-x64 --self-contained true --output ./publish
+      - name: Publish self-contained app
+        run: dotnet publish Waddle.Wpf/Waddle.Wpf.csproj --configuration Release --runtime win-x64 --self-contained true --output ./publish
 
-    - name: Install Inno Setup
-      run: choco install innosetup -y --no-progress
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
 
-    - name: Build installer
-      run: iscc /DMyAppVersion=1.0.${{ github.run_number }} installer\waddle.iss
+      - name: Build installer
+        run: iscc /DMyAppVersion=1.0.${{ github.run_number }} installer\waddle.iss
 
-    - name: Upload installer
-      uses: actions/upload-artifact@v7
-      with:
-        name: Waddle-Installer
-        path: installer/output/*.exe
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: Waddle-Installer
+          path: installer/output/*.exe
+
+  release:
+    name: Create GitHub Release
+    needs: installer
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    steps:
+      - name: Download installer
+        uses: actions/download-artifact@v5
+        with:
+          name: Waddle-Installer
+          path: ./installer-artifact
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Waddle v1.0.${{ github.run_number }}
+          generate_release_notes: true
+          files: ./installer-artifact/*.exe
