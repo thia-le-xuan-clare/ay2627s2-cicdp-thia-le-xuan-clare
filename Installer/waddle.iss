@@ -6,7 +6,6 @@
 #define MyAppExeName "Waddle.Wpf.exe"
 
 [Setup]
-; Generate your own GUID: Inno IDE > Tools > Generate GUID (keep the leading {{ )
 AppId={{83D18785-4E70-449E-9D73-FF11289A928C}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}

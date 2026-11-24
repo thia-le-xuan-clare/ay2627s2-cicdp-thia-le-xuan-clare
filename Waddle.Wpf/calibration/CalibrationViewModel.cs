@@ -33,6 +33,9 @@ public partial class CalibrationViewModel : ObservableObject, IDisposable
 
   [ObservableProperty] private string lastCalibratedText = "";
 
+  /// <summary>"Scan" while the camera is on, "Try again" when it isn't. Refreshed whenever the camera changes.</summary>
+  [ObservableProperty] private string scanText = CurrentScanText();
+
   public CalibrationViewModel(ILogService log, ICalibrationStore store)
   {
     _log = log;
@@ -55,7 +58,7 @@ public partial class CalibrationViewModel : ObservableObject, IDisposable
   public bool IsAlreadyCalibrated => Step == CalibrationStep.AlreadyCalibrated;
   public bool IsLive => Step != CalibrationStep.AlreadyCalibrated;
   public bool IsCounting => Step == CalibrationStep.Counting;
-  public static string ScanText => Monitor.IsOn ? "Scan" : "Try again";
+  private static string CurrentScanText() => Monitor.IsOn ? "Scan" : "Try again";
 
   public bool IsFirstRun { get; }
   public string TitleText => IsFirstRun ? "Welcome to Waddle!" : "Please sit up straight";
@@ -138,7 +141,7 @@ public partial class CalibrationViewModel : ObservableObject, IDisposable
   private void OnMonitorChanged(object? sender, PropertyChangedEventArgs e)
   {
     RefreshStatus();
-    OnPropertyChanged(nameof(ScanText));
+    ScanText = CurrentScanText();
     ScanCommand.NotifyCanExecuteChanged();
   }
 

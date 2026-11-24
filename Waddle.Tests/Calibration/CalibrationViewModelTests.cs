@@ -122,7 +122,7 @@ public sealed class CalibrationViewModelTests : IDisposable
     Assert.Equal("Face detected. ", vm.StatusTitle);
     Assert.Equal("Please sit up straight then press Scan.", vm.StatusDetail);
     Assert.True(vm.ScanCommand.CanExecute(null));
-    Assert.Equal("Scan", CalibrationViewModel.ScanText);
+    Assert.Equal("Scan", vm.ScanText);
     Assert.Contains("Camera access requested for calibration", _log.SecurityLines);
     Assert.Contains("Camera on", _log.SecurityLines);
   }
@@ -136,7 +136,7 @@ public sealed class CalibrationViewModelTests : IDisposable
     await _wpf.Query(() => vm.StartAsync()).WaitAsync(Patience);
 
     Assert.Contains("camera is off", vm.StatusTitle);
-    Assert.Equal("Try again", CalibrationViewModel.ScanText);
+    Assert.Equal("Try again", vm.ScanText);
     Assert.True(vm.ScanCommand.CanExecute(null));          // the same button becomes "Try again"
     Assert.False(_wpf.Query(() => CameraMonitor.Instance.HasHolders));
   }
