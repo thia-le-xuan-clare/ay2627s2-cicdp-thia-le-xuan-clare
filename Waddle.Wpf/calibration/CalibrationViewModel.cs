@@ -55,7 +55,7 @@ public partial class CalibrationViewModel : ObservableObject, IDisposable
   public bool IsAlreadyCalibrated => Step == CalibrationStep.AlreadyCalibrated;
   public bool IsLive => Step != CalibrationStep.AlreadyCalibrated;
   public bool IsCounting => Step == CalibrationStep.Counting;
-  public static string ScanText => Monitor.IsOn ? "Scan" : "Try again";
+  public string ScanText => Monitor.IsOn ? "Scan" : "Try again";
 
   public bool IsFirstRun { get; }
   public string TitleText => IsFirstRun ? "Welcome to Waddle!" : "Please sit up straight";
