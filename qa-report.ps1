@@ -22,13 +22,23 @@ $resultsDir = Join-Path (Get-Location) 'TestResults/qa'
 if (Test-Path $resultsDir) { Remove-Item $resultsDir -Recurse -Force }
 New-Item -ItemType Directory -Path $resultsDir | Out-Null
 
-function Add-Result($stage, $check, $status, $summary, $details = '', $seconds = 0) {
+function Add-Result($stage, $check, $status, $summary, $details = '', $seconds = 0, $detailsHtml = '') {
   $script:results += [pscustomobject]@{
     Stage = $stage; Check = $check; Status = $status
-    Summary = $summary; Details = $details; Seconds = [math]::Round($seconds, 1)
+    Summary = $summary; Details = $details; DetailsHtml = $detailsHtml; Seconds = [math]::Round($seconds, 1)
   }
   $color = @{ PASS = 'Green'; FAIL = 'Red'; SKIP = 'Yellow' }[$status]
   Write-Host ("  [{0}] {1} - {2}" -f $status, $check, $summary) -ForegroundColor $color
+}
+
+# One coverage cell: a bar (green when it meets the threshold, red when below it) and the number.
+function Get-CovCell($pct, [double]$min) {
+  if ($null -eq $pct) { return '<span class="n">n/a</span>' }
+  $inv = [cultureinfo]::InvariantCulture
+  $low = $pct -lt $min
+  $w = [math]::Min(100, [math]::Max(0, $pct))
+  '<div class="cv {0}"><span class="bar"><i style="width:{1}%"></i></span><span class="pc">{2}%</span></div>' -f `
+    $(if ($low) { 'low' } else { 'ok' }), $w.ToString('0.#', $inv), $pct.ToString('F1', $inv)
 }
 
 function Invoke-Dotnet([string[]]$dotnetArgs) {
@@ -110,55 +120,59 @@ if (-not $cov) {
   $covLine = [double]$root.'line-rate' * 100
   $covBranch = [double]$root.'branch-rate' * 100
   $covOk = ($covLine -ge $MinCoverage -and $covBranch -ge $MinCoverage)
-  $covSum = "line {0:N1}% ({1} of {2}), branch {3:N1}% ({4} of {5})" -f $covLine, $root.'lines-covered', $root.'lines-valid', $covBranch, $root.'branches-covered', $root.'branches-valid'
+  $covSum = "Line {0:N1}% ({1} of {2}), Branch {3:N1}% ({4} of {5})" -f $covLine, $root.'lines-covered', $root.'lines-valid', $covBranch, $root.'branches-covered', $root.'branches-valid'
   if ($r.Code -ne 0) { $covSum += ' (some tests failed during this run)' }
 
-  # per-class breakdown (nested/compiler-generated classes are folded into their parent class)
+  # per-class breakdown, grouped by assembly (nested/compiler-generated classes are folded into their parent class)
   $byClass = @{}
-  foreach ($c in $root.SelectNodes('.//class')) {
-    $name = ($c.name -split '/')[0]
-    if (-not $byClass.ContainsKey($name)) {
-      $byClass[$name] = [pscustomobject]@{ Name = $name; Lines = 0; LinesCov = 0; Br = 0; BrCov = 0 }
-    }
-    $e = $byClass[$name]
-    foreach ($l in $c.SelectNodes('lines/line')) {
-      $e.Lines++
-      if ([int]$l.hits -gt 0) { $e.LinesCov++ }
-      if ($l.branch -eq 'True' -and $l.'condition-coverage' -match '\((\d+)/(\d+)\)') {
-        $e.BrCov += [int]$Matches[1]
-        $e.Br += [int]$Matches[2]
+  foreach ($pkg in $root.SelectNodes('.//package')) {
+    foreach ($c in $pkg.SelectNodes('classes/class')) {
+      $name = ($c.name -split '/')[0]
+      $key = "$($pkg.name)|$name"
+      if (-not $byClass.ContainsKey($key)) {
+        $byClass[$key] = [pscustomobject]@{ Assembly = $pkg.name; Name = $name; Lines = 0; LinesCov = 0; Br = 0; BrCov = 0 }
+      }
+      $e = $byClass[$key]
+      foreach ($l in $c.SelectNodes('lines/line')) {
+        $e.Lines++
+        if ([int]$l.hits -gt 0) { $e.LinesCov++ }
+        if ($l.branch -eq 'True' -and $l.'condition-coverage' -match '\((\d+)/(\d+)\)') {
+          $e.BrCov += [int]$Matches[1]
+          $e.Br += [int]$Matches[2]
+        }
       }
     }
   }
+  $pctOf = { param($c, $t) if ($t -gt 0) { 100.0 * $c / $t } else { $null } }
   $table = $byClass.Values | ForEach-Object {
+    $lp = & $pctOf $_.LinesCov $_.Lines
+    $bp = & $pctOf $_.BrCov $_.Br
     [pscustomobject]@{
-      Class            = $_.Name
-      'Line %'         = $(if ($_.Lines -gt 0) { [math]::Round(100.0 * $_.LinesCov / $_.Lines, 1) } else { 100 })
-      'Branch %'       = $(if ($_.Br -gt 0) { [math]::Round(100.0 * $_.BrCov / $_.Br, 1) } else { 'n/a' })
-      'Branches missed' = $_.Br - $_.BrCov
-      'Lines missed'   = $_.Lines - $_.LinesCov
+      Assembly = $_.Assembly; Class = $_.Name; Lines = $_.Lines; LinesCov = $_.LinesCov; Br = $_.Br; BrCov = $_.BrCov
+      LinePct = $lp; BranchPct = $bp
+      Low = (($null -ne $lp -and $lp -lt $MinCoverage) -or ($null -ne $bp -and $bp -lt $MinCoverage))
+      Worst = @($lp, $bp | Where-Object { $null -ne $_ } | Measure-Object -Minimum).Minimum
     }
-  } | Sort-Object @{ Expression = 'Branches missed'; Descending = $true }, @{ Expression = 'Lines missed'; Descending = $true }
-  # Full ReportGenerator text summary (same as running reportgenerator by hand).
-  # It goes only into the HTML 'details' box, not the terminal.
-  if (-not (Get-Command reportgenerator -ErrorAction SilentlyContinue)) {
-    & dotnet tool install -g dotnet-reportgenerator-globaltool 2>&1 | Out-Null
-    $env:Path += ';' + (Join-Path $env:USERPROFILE '.dotnet\tools')
   }
-  $rgDir = Join-Path $resultsDir 'CoverageReport'
-  if (Get-Command reportgenerator -ErrorAction SilentlyContinue) {
-    & reportgenerator "-reports:$covDir\**\coverage.cobertura.xml" "-targetdir:$rgDir" '-reporttypes:TextSummary' 2>&1 | Out-Null
-  }
-  $summaryFile = Join-Path $rgDir 'Summary.txt'
-  if (Test-Path $summaryFile) {
-    $covDetails = (Get-Content $summaryFile -Raw).TrimEnd()
-  } else {
-    # fallback if reportgenerator could not be installed: the built-in per-class table
-    $covDetails = "All classes (most missed branches first):`n" +
-      (($table | Format-Table -AutoSize | Out-String -Width 220).TrimEnd())
-  }
+  $lowCount = @($table | Where-Object Low).Count
+  if ($lowCount -gt 0) { $covSum += ", $lowCount of $(@($table).Count) classes below $MinCoverage%" }
 
-  Add-Result 'Coverage' $covName ($(if ($covOk) { 'PASS' } else { 'FAIL' })) $covSum $covDetails $r.Seconds
+  # HTML breakdown for the report: assembly header rows, classes sorted worst-first, coverage shown as green/red bars
+  $encode = { param($s) [System.Net.WebUtility]::HtmlEncode([string]$s) }
+  $covRows = foreach ($g in ($table | Group-Object Assembly | Sort-Object Name)) {
+    $gl = ($g.Group | Measure-Object Lines -Sum).Sum;   $glc = ($g.Group | Measure-Object LinesCov -Sum).Sum
+    $gb = ($g.Group | Measure-Object Br -Sum).Sum;      $gbc = ($g.Group | Measure-Object BrCov -Sum).Sum
+    "<tr class=`"asm`"><td>$(& $encode $g.Name)</td><td>$(Get-CovCell (& $pctOf $glc $gl) $MinCoverage)</td><td>$(Get-CovCell (& $pctOf $gbc $gb) $MinCoverage)</td><td class=`"n`">$($gl - $glc) / $($gb - $gbc)</td></tr>"
+    foreach ($c in ($g.Group | Sort-Object @{ Expression = { if ($null -eq $_.Worst) { 101 } else { $_.Worst } } }, Class)) {
+      $short = if ($c.Class.StartsWith("$($g.Name).")) { $c.Class.Substring($g.Name.Length + 1) } else { $c.Class }
+      "<tr class=`"cls$(if ($c.Low) { ' low' })`"><td class=`"ind`">$(& $encode $short)</td><td>$(Get-CovCell $c.LinePct $MinCoverage)</td><td>$(Get-CovCell $c.BranchPct $MinCoverage)</td><td class=`"n`">$($c.Lines - $c.LinesCov) / $($c.Br - $c.BrCov)</td></tr>"
+    }
+  }
+  $legend = "<div class=`"leg`"><label><input type=`"checkbox`" class=`"onlylow`"> Show only classes below $MinCoverage%</label><span class=`"n`">Minimum coverage: $MinCoverage%</span></div>"
+  $totRow = "<tr class=`"asm tot`"><td>Total</td><td>$(Get-CovCell $covLine $MinCoverage)</td><td>$(Get-CovCell $covBranch $MinCoverage)</td><td class=`"n`">$([int]$root.'lines-valid' - [int]$root.'lines-covered') / $([int]$root.'branches-valid' - [int]$root.'branches-covered')</td></tr>"
+  $covHtml = "<details class=`"covd`"><summary>Coverage details</summary><div class=`"covbox`">$legend<table class=`"cov`"><thead><tr><th>Assembly / class</th><th>Line</th><th>Branch</th><th title=`"Uncovered lines / uncovered branches`">Missed<br>L / B</th></tr></thead><tbody>$totRow`n$($covRows -join "`n")</tbody></table></div></details>"
+
+  Add-Result 'Coverage' $covName ($(if ($covOk) { 'PASS' } else { 'FAIL' })) $covSum '' $r.Seconds $covHtml
 }
 
 # ---------------------------------------------------------------- 4. SECURITY
@@ -218,7 +232,9 @@ if ($SkipE2E) {
 # ---------------------------------------------------------------- HTML
 $enc = { param($s) [System.Net.WebUtility]::HtmlEncode([string]$s) }
 $rows = foreach ($r in $results) {
-  $d = if ($r.Details) { "<details><summary>details</summary><pre>$(& $enc $r.Details)</pre></details>" } else { '' }
+  $d = if ($r.DetailsHtml) { $r.DetailsHtml }
+       elseif ($r.Details) { "<details><summary>details</summary><pre>$(& $enc $r.Details)</pre></details>" }
+       else { '' }
   "<tr><td>$(& $enc $r.Stage)</td><td>$(& $enc $r.Check)</td><td><span class=""b $($r.Status.ToLower())"">$($r.Status)</span></td><td>$(& $enc $r.Summary)$d</td><td class=""n"">$($r.Seconds)s</td></tr>"
 }
 $pass = @($results | Where-Object Status -eq 'PASS').Count
@@ -235,7 +251,7 @@ $html = @"
 <style>
 :root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#e2e2e2;--pass:#1a7f37;--fail:#cf222e;--skip:#9a6700;--card:#f6f8fa}
 @media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#8b949e;--line:#30363d;--pass:#3fb950;--fail:#f85149;--skip:#d29922;--card:#161b22}}
-body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:960px;margin:2rem auto;padding:0 1rem}
+body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:1100px;margin:2rem auto;padding:0 1rem}
 h1{margin:0 0 .25rem}.meta{color:var(--mut);margin-bottom:1.25rem}
 .sum{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.5rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem;min-width:110px}
@@ -245,6 +261,17 @@ h1{margin:0 0 .25rem}.meta{color:var(--mut);margin-bottom:1.25rem}
 th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
 .b{font-weight:600;font-size:.8rem;border:1px solid currentColor;border-radius:99px;padding:.1rem .55rem}
 .n{color:var(--mut);white-space:nowrap}
+table.cov{font-size:.82rem;margin-top:.5rem}table.cov th{font-size:.75rem;color:var(--mut)}
+table.cov td,table.cov th{padding:.3rem .5rem}
+table.cov td:first-child{max-width:15rem;overflow-wrap:anywhere}tr.asm td{font-weight:600;background:var(--card)}tr.cls td.ind{padding-left:1.4rem}
+.cv{display:flex;align-items:center;gap:.4rem;white-space:nowrap}
+.bar{position:relative;display:inline-block;width:48px;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i{position:absolute;top:0;bottom:0;left:0;background:var(--pass)}.cv.low .bar i{background:var(--fail)}
+.cv .pc{min-width:3.2rem;text-align:right}
+.leg{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:.8rem;margin-top:.5rem}
+details.covd>summary{cursor:pointer;color:var(--mut);font-size:.85rem;margin-top:.25rem}
+.covbox{overflow-x:auto}.covbox:has(.onlylow:checked) tr.cls:not(.low){display:none}
+tr.tot td{border-bottom:2px solid var(--mut)}
 pre{white-space:pre-wrap;background:var(--card);padding:.5rem;border-radius:6px;max-height:600px;overflow:auto;font-size:.8rem}
 </style></head><body>
 <h1>Waddle QA Report</h1>

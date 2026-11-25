@@ -5,7 +5,7 @@
 <style>
 :root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#e2e2e2;--pass:#1a7f37;--fail:#cf222e;--skip:#9a6700;--card:#f6f8fa}
 @media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#8b949e;--line:#30363d;--pass:#3fb950;--fail:#f85149;--skip:#d29922;--card:#161b22}}
-body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:960px;margin:2rem auto;padding:0 1rem}
+body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:1100px;margin:2rem auto;padding:0 1rem}
 h1{margin:0 0 .25rem}.meta{color:var(--mut);margin-bottom:1.25rem}
 .sum{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.5rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem;min-width:110px}
@@ -15,10 +15,21 @@ h1{margin:0 0 .25rem}.meta{color:var(--mut);margin-bottom:1.25rem}
 th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
 .b{font-weight:600;font-size:.8rem;border:1px solid currentColor;border-radius:99px;padding:.1rem .55rem}
 .n{color:var(--mut);white-space:nowrap}
+table.cov{font-size:.82rem;margin-top:.5rem}table.cov th{font-size:.75rem;color:var(--mut)}
+table.cov td,table.cov th{padding:.3rem .5rem}
+table.cov td:first-child{max-width:15rem;overflow-wrap:anywhere}tr.asm td{font-weight:600;background:var(--card)}tr.cls td.ind{padding-left:1.4rem}
+.cv{display:flex;align-items:center;gap:.4rem;white-space:nowrap}
+.bar{position:relative;display:inline-block;width:48px;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i{position:absolute;top:0;bottom:0;left:0;background:var(--pass)}.cv.low .bar i{background:var(--fail)}
+.cv .pc{min-width:3.2rem;text-align:right}
+.leg{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:.8rem;margin-top:.5rem}
+details.covd>summary{cursor:pointer;color:var(--mut);font-size:.85rem;margin-top:.25rem}
+.covbox{overflow-x:auto}.covbox:has(.onlylow:checked) tr.cls:not(.low){display:none}
+tr.tot td{border-bottom:2px solid var(--mut)}
 pre{white-space:pre-wrap;background:var(--card);padding:.5rem;border-radius:6px;max-height:600px;overflow:auto;font-size:.8rem}
 </style></head><body>
 <h1>Waddle QA Report</h1>
-<div class="meta">2026-11-24 16:16 &middot; commit 4b43690 &middot; overall <b class="pass">PASSED</b></div>
+<div class="meta">2026-11-26 00:07 &middot; commit c3491da &middot; overall <b class="pass">PASSED</b></div>
 <div class="sum">
 <div class="card"><b class="pass">9</b>passed</div>
 <div class="card"><b class="fail">0</b>failed</div>
@@ -27,80 +38,58 @@ pre{white-space:pre-wrap;background:var(--card);padding:.5rem;border-radius:6px;
 <div class="wrap"><table>
 <thead><tr><th>Stage</th><th>Check</th><th>Status</th><th>Result</th><th>Time</th></tr></thead>
 <tbody>
-<tr><td>Lint</td><td>Roslyn + .NET analyzers (warnings as errors)</td><td><span class="b pass">PASS</span></td><td>No analyzer warnings or errors</td><td class="n">25.9s</td></tr>
-<tr><td>Format</td><td>dotnet format --verify-no-changes</td><td><span class="b pass">PASS</span></td><td>All files correctly formatted</td><td class="n">33.6s</td></tr>
-<tr><td>Unit &amp; Integration</td><td>xUnit (excluding Security namespace)</td><td><span class="b pass">PASS</span></td><td>409/409 passed, 0 failed, 0 skipped</td><td class="n">38s</td></tr>
-<tr><td>Coverage</td><td>Coverage (line and branch &gt;= 80%)</td><td><span class="b pass">PASS</span></td><td>line 95.4% (1623 of 1701), branch 83.2% (824 of 990)<details><summary>details</summary><pre>Summary
-  Generated on: 24/11/2026 - 4:14:02 pm
-  Coverage date: 24/11/2026 - 4:14:01 pm
-  Parser: Cobertura
-  Assemblies: 3
-  Classes: 40
-  Files: 41
-  Line coverage: 95.4%
-  Covered lines: 1623
-  Uncovered lines: 78
-  Coverable lines: 1701
-  Total lines: 4460
-  Branch coverage: 83.4% (816 of 978)
-  Covered branches: 816
-  Total branches: 978
-  Method coverage: 97.2% (320 of 329)
-  Full method coverage: 91.7% (302 of 329)
-  Covered methods: 320
-  Fully covered methods: 302
-  Total methods: 329
-
-Waddle.Core                                             100%
-  Waddle.Core.CalibrationData                           100%
-  Waddle.Core.DailyWarningSummary                       100%
-  Waddle.Core.DayWarningStats                           100%
-  Waddle.Core.FaceFrame                                 100%
-  Waddle.Core.LevelOutcomeCounts                        100%
-
-Waddle.Infrastructure                                  88.2%
-  Waddle.Infrastructure.Data.DatabaseInitializer        100%
-  Waddle.Infrastructure.Data.SqliteCalibrationStore     100%
-  Waddle.Infrastructure.Data.SqliteDailyTimeStore       100%
-  Waddle.Infrastructure.Data.SqliteWarningEventStore    100%
-  Waddle.Infrastructure.FileLogService                  100%
-  Waddle.Infrastructure.OpenCvCameraService            53.8%
-
-Waddle.Wpf                                             96.9%
-  Waddle.Wpf.BannerService                             97.2%
-  Waddle.Wpf.BannerWindow                               100%
-  Waddle.Wpf.CalendarDay                                100%
-  Waddle.Wpf.CalendarWeek                               100%
-  Waddle.Wpf.CalibrationViewModel                       100%
-  Waddle.Wpf.CalibrationWindow                         95.4%
-  Waddle.Wpf.CameraMonitor                               97%
-  Waddle.Wpf.DayCell                                    100%
-  Waddle.Wpf.DayStatsViewModel                          100%
-  Waddle.Wpf.DuckAnimator                              95.7%
-  Waddle.Wpf.HistoryCalendarViewModel                   100%
-  Waddle.Wpf.HistoryViewModel                           100%
-  Waddle.Wpf.IdleReminder                               100%
-  Waddle.Wpf.MainViewModel                              100%
-  Waddle.Wpf.MainWindow                                93.3%
-  Waddle.Wpf.MonitorTuning                              100%
-  Waddle.Wpf.OverlayState                               100%
-  Waddle.Wpf.PieChartModel                              100%
-  Waddle.Wpf.PieSlice                                   100%
-  Waddle.Wpf.PostureMonitor                            98.6%
-  Waddle.Wpf.PostureOverlayWindow                      88.8%
-  Waddle.Wpf.PostureTuning                              100%
-  Waddle.Wpf.SettingsPanel                              100%
-  Waddle.Wpf.SettingsWindow                             100%
-  Waddle.Wpf.StartupManager                            97.3%
-  Waddle.Wpf.StartupPromptWindow                        100%
-  Waddle.Wpf.TimeTracker                               97.3%
-  Waddle.Wpf.WidgetWindow                              98.2%
-  XamlGeneratedNamespace.GeneratedInternalTypeHelper      0%</pre></details></td><td class="n">35.9s</td></tr>
-<tr><td>Security</td><td>Security tests (log/SQL injection, schema integrity)</td><td><span class="b pass">PASS</span></td><td>9/9 passed, 0 failed, 0 skipped</td><td class="n">7.4s</td></tr>
-<tr><td>Security</td><td>Vulnerable NuGet packages (incl. transitive)</td><td><span class="b pass">PASS</span></td><td>None found</td><td class="n">24.1s</td></tr>
-<tr><td>Security</td><td>Secret scan (gitleaks, full git history)</td><td><span class="b pass">PASS</span></td><td>No secrets detected</td><td class="n">2.8s</td></tr>
-<tr><td>Security</td><td>CodeQL (open alerts on GitHub)</td><td><span class="b pass">PASS</span></td><td>0 open alerts</td><td class="n">1.1s</td></tr>
-<tr><td>E2E</td><td>FlaUI UI automation</td><td><span class="b pass">PASS</span></td><td>23/23 passed, 0 failed, 0 skipped</td><td class="n">93.5s</td></tr>
+<tr><td>Lint</td><td>Roslyn + .NET analyzers (warnings as errors)</td><td><span class="b pass">PASS</span></td><td>No analyzer warnings or errors</td><td class="n">15.6s</td></tr>
+<tr><td>Format</td><td>dotnet format --verify-no-changes</td><td><span class="b pass">PASS</span></td><td>All files correctly formatted</td><td class="n">16.1s</td></tr>
+<tr><td>Unit &amp; Integration</td><td>xUnit (excluding Security namespace)</td><td><span class="b pass">PASS</span></td><td>409/409 passed, 0 failed, 0 skipped</td><td class="n">33.7s</td></tr>
+<tr><td>Coverage</td><td>Coverage (line and branch &gt;= 80%)</td><td><span class="b pass">PASS</span></td><td>Line 95.4% (1623 of 1701), Branch 83.2% (824 of 990), 11 of 40 classes below 80%<details class="covd"><summary>Coverage details</summary><div class="covbox"><div class="leg"><label><input type="checkbox" class="onlylow"> Show only classes below 80%</label><span class="n">Minimum coverage: 80%</span></div><table class="cov"><thead><tr><th>Assembly / class</th><th>Line</th><th>Branch</th><th title="Uncovered lines / uncovered branches">Missed<br>L / B</th></tr></thead><tbody><tr class="asm tot"><td>Total</td><td><div class="cv ok"><span class="bar"><i style="width:95%"></i></span><span class="pc">95.4%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:83%"></i></span><span class="pc">83.2%</span></div></td><td class="n">78 / 166</td></tr>
+<tr class="asm"><td>Waddle.Core</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">CalibrationData</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">DailyWarningSummary</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">DayWarningStats</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">FaceFrame</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">LevelOutcomeCounts</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">0 / 0</td></tr>
+<tr class="asm"><td>Waddle.Infrastructure</td><td><div class="cv ok"><span class="bar"><i style="width:88%"></i></span><span class="pc">88.2%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:58%"></i></span><span class="pc">58.3%</span></div></td><td class="n">36 / 30</td></tr>
+<tr class="cls low"><td class="ind">OpenCvCameraService</td><td><div class="cv low"><span class="bar"><i style="width:54%"></i></span><span class="pc">53.8%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:42%"></i></span><span class="pc">42.0%</span></div></td><td class="n">36 / 29</td></tr>
+<tr class="cls low"><td class="ind">FileLogService</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:50%"></i></span><span class="pc">50.0%</span></div></td><td class="n">0 / 1</td></tr>
+<tr class="cls"><td class="ind">Data.DatabaseInitializer</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">Data.SqliteCalibrationStore</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">Data.SqliteDailyTimeStore</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">Data.SqliteWarningEventStore</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="asm"><td>Waddle.Wpf</td><td><div class="cv ok"><span class="bar"><i style="width:97%"></i></span><span class="pc">97.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:85%"></i></span><span class="pc">85.4%</span></div></td><td class="n">42 / 132</td></tr>
+<tr class="cls low"><td class="ind">XamlGeneratedNamespace.GeneratedInternalTypeHelper</td><td><div class="cv low"><span class="bar"><i style="width:0%"></i></span><span class="pc">0.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">11 / 0</td></tr>
+<tr class="cls low"><td class="ind">PostureOverlayWindow</td><td><div class="cv ok"><span class="bar"><i style="width:89%"></i></span><span class="pc">88.9%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:60%"></i></span><span class="pc">60.0%</span></div></td><td class="n">2 / 4</td></tr>
+<tr class="cls low"><td class="ind">IdleReminder</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:62%"></i></span><span class="pc">62.5%</span></div></td><td class="n">0 / 9</td></tr>
+<tr class="cls low"><td class="ind">CalibrationWindow</td><td><div class="cv ok"><span class="bar"><i style="width:95%"></i></span><span class="pc">95.5%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:67%"></i></span><span class="pc">66.7%</span></div></td><td class="n">1 / 2</td></tr>
+<tr class="cls low"><td class="ind">DuckAnimator</td><td><div class="cv ok"><span class="bar"><i style="width:96%"></i></span><span class="pc">95.7%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:71%"></i></span><span class="pc">71.4%</span></div></td><td class="n">2 / 4</td></tr>
+<tr class="cls low"><td class="ind">SettingsWindow</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:75%"></i></span><span class="pc">75.0%</span></div></td><td class="n">0 / 2</td></tr>
+<tr class="cls low"><td class="ind">BannerService</td><td><div class="cv ok"><span class="bar"><i style="width:97%"></i></span><span class="pc">97.3%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:77%"></i></span><span class="pc">77.1%</span></div></td><td class="n">3 / 22</td></tr>
+<tr class="cls low"><td class="ind">StartupManager</td><td><div class="cv ok"><span class="bar"><i style="width:97%"></i></span><span class="pc">97.4%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:78%"></i></span><span class="pc">77.8%</span></div></td><td class="n">1 / 4</td></tr>
+<tr class="cls low"><td class="ind">MainWindow</td><td><div class="cv ok"><span class="bar"><i style="width:93%"></i></span><span class="pc">93.4%</span></div></td><td><div class="cv low"><span class="bar"><i style="width:79%"></i></span><span class="pc">78.9%</span></div></td><td class="n">9 / 12</td></tr>
+<tr class="cls"><td class="ind">CameraMonitor</td><td><div class="cv ok"><span class="bar"><i style="width:97%"></i></span><span class="pc">97.1%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:82%"></i></span><span class="pc">81.9%</span></div></td><td class="n">6 / 33</td></tr>
+<tr class="cls"><td class="ind">SettingsPanel</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:85%"></i></span><span class="pc">84.6%</span></div></td><td class="n">0 / 2</td></tr>
+<tr class="cls"><td class="ind">StartupPromptWindow</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:85%"></i></span><span class="pc">84.6%</span></div></td><td class="n">0 / 2</td></tr>
+<tr class="cls"><td class="ind">PostureMonitor</td><td><div class="cv ok"><span class="bar"><i style="width:99%"></i></span><span class="pc">98.7%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:85%"></i></span><span class="pc">84.8%</span></div></td><td class="n">1 / 10</td></tr>
+<tr class="cls"><td class="ind">BannerWindow</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:88%"></i></span><span class="pc">87.5%</span></div></td><td class="n">0 / 3</td></tr>
+<tr class="cls"><td class="ind">WidgetWindow</td><td><div class="cv ok"><span class="bar"><i style="width:98%"></i></span><span class="pc">98.3%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:92%"></i></span><span class="pc">91.7%</span></div></td><td class="n">2 / 9</td></tr>
+<tr class="cls"><td class="ind">TimeTracker</td><td><div class="cv ok"><span class="bar"><i style="width:97%"></i></span><span class="pc">97.4%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:92%"></i></span><span class="pc">92.3%</span></div></td><td class="n">4 / 9</td></tr>
+<tr class="cls"><td class="ind">DayStatsViewModel</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:93%"></i></span><span class="pc">92.9%</span></div></td><td class="n">0 / 1</td></tr>
+<tr class="cls"><td class="ind">HistoryCalendarViewModel</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:94%"></i></span><span class="pc">93.8%</span></div></td><td class="n">0 / 3</td></tr>
+<tr class="cls"><td class="ind">CalibrationViewModel</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:98%"></i></span><span class="pc">97.6%</span></div></td><td class="n">0 / 1</td></tr>
+<tr class="cls"><td class="ind">CalendarDay</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">CalendarWeek</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">DayCell</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">HistoryViewModel</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">MainViewModel</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">MonitorTuning</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">OverlayState</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">PieChartModel</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">PieSlice</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">0 / 0</td></tr>
+<tr class="cls"><td class="ind">PostureTuning</td><td><div class="cv ok"><span class="bar"><i style="width:100%"></i></span><span class="pc">100.0%</span></div></td><td><span class="n">n/a</span></td><td class="n">0 / 0</td></tr></tbody></table></div></details></td><td class="n">41.3s</td></tr>
+<tr><td>Security</td><td>Security tests (log/SQL injection, schema integrity)</td><td><span class="b pass">PASS</span></td><td>9/9 passed, 0 failed, 0 skipped</td><td class="n">7.7s</td></tr>
+<tr><td>Security</td><td>Vulnerable NuGet packages (incl. transitive)</td><td><span class="b pass">PASS</span></td><td>None found</td><td class="n">13.9s</td></tr>
+<tr><td>Security</td><td>Secret scan (gitleaks, full git history)</td><td><span class="b pass">PASS</span></td><td>No secrets detected</td><td class="n">1.4s</td></tr>
+<tr><td>Security</td><td>CodeQL (open alerts on GitHub)</td><td><span class="b pass">PASS</span></td><td>0 open alerts</td><td class="n">1.2s</td></tr>
+<tr><td>E2E</td><td>FlaUI UI automation</td><td><span class="b pass">PASS</span></td><td>23/23 passed, 0 failed, 0 skipped</td><td class="n">62.3s</td></tr>
 </tbody>
 </table></div>
 </body></html>
