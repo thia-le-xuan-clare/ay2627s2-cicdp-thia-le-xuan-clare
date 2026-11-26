@@ -46,7 +46,8 @@ public sealed class OpenCvCameraService : ICameraService, IDisposable
     lock (_gate)
     {
       _cts?.Cancel();
-      _thread?.Join(1500);        // the loop checks the token every frame, so this is quick
+      if (_thread is { IsAlive: true } t && !t.Join(1500))
+        _log?.Info("WARNING: camera thread did not stop in time");
       _thread = null;
       _cts?.Dispose();
       _cts = null;

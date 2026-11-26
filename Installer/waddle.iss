@@ -23,7 +23,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern
-CloseApplications=yes
+CloseApplications=force
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -41,6 +42,10 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
+[UninstallRun]
+; Make sure Waddle is not still running in the background, or the uninstall can fail
+Filename: "{sys}\taskkill.exe"; Parameters: "/f /im {#MyAppExeName}"; Flags: runhidden; RunOnceId: "KillWaddle"
+
 [UninstallDelete]
 ; Leave %LocalAppData%\Waddle (history/calibration) alone by default; see the optional code below.
 
@@ -49,6 +54,15 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "Waddle"; Flags: uninsdeletevalue
 
 [Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  // End any running (or hung) copy of Waddle so the files can be replaced
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then

@@ -256,8 +256,31 @@ public partial class App : Application, IDisposable
 
   protected override void OnExit(ExitEventArgs e)
   {
-    Dispose();
-    base.OnExit(e);
+    // Backstop: if anything below hangs (e.g. a webcam driver stuck in native code),
+    // kill the process after 3 seconds so Waddle can never linger in the background.
+    var killer = new Thread(() =>
+    {
+      Thread.Sleep(3000);
+      System.Diagnostics.Process.GetCurrentProcess().Kill();   // TerminateProcess: doesn't wait for native code
+    })
+    { IsBackground = true };
+    killer.Start();
+
+    try
+    {
+      TimeTracker.Instance.Stop();
+      CameraMonitor.Instance.Shutdown();
+      (Services as IDisposable)?.Dispose();    // disposes the camera service etc.
+    }
+    catch (Exception ex)
+    {
+      try { Services?.GetService<ILogService>()?.Info($"Exit cleanup failed: {ex.Message}"); } catch { }
+    }
+    finally
+    {
+      Dispose();                               // tray icon
+      base.OnExit(e);
+    }
   }
 
   public void Dispose()
