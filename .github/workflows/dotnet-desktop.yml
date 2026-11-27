@@ -111,7 +111,7 @@ jobs:
           reporter: dotnet-trx
 
       - name: Code Coverage Summary
-        uses: danielpalme/ReportGenerator-GitHub-Action@5.6.0
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.6.1
         with:
           reports: './TestResults/**/coverage.cobertura.xml'
           targetdir: './CoverageReport'
@@ -190,13 +190,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Download installer
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: Waddle-Installer
           path: ./installer-artifact
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: Waddle v1.0.${{ github.run_number }}
